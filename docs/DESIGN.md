@@ -370,5 +370,5 @@ exprything/
 | 차트 (결정 2, 잠정) | ECharts option + `dataset.source` 주입 |
 | 패키지 | `widgets/` 폴더 없이 카탈로그는 `schema`, 렌더러는 `ui`에 둠. MCP 서버는 `exp mcp`로 CLI에 포함 |
 | 위젯 스타일 | Excalidraw 요소 속성과 같은 이름의 `style`(노드별, 캔버스 기본값). 테두리는 Excalidraw가 그리고, 글꼴·잉크 색은 HTML에, `roughness > 0`이면 막대·선 차트를 rough.js로 그린다. 사람이 스타일 패널로 바꾼 필드는 `stylePins`로 고정. [research/excalidraw.md](research/excalidraw.md) 10.6 |
-| 로딩 스켈레톤 | 첫 값을 기다리는 위젯(새 레시피, 승인 직후 첫 실행)은 [Skullet](https://skullet.lochie.me) 0.0.3이 위젯 자신의 레이아웃으로 스켈레톤을 그린다. 타입별 샘플 데이터를 보이지 않게 렌더해 측정하고, 한 번 내용을 보인 위젯은 그 모양을 `localStorage`에 기억해 다음 스켈레톤에 쓴다. 차트는 측정하지 않고 플롯 영역 하나를 블록으로 그린다. Skullet은 내용을 보이는 동안에도 모양을 계속 다시 재므로, 데이터와 함께 마운트된 위젯에는 붙이지 않는다 |
+| 로딩 스켈레톤 | 값 없이 소스가 실행 중인 위젯(새 레시피, 승인 직후 첫 실행, 명령이 바뀌어 값을 잃은 위젯)은 [Skullet](https://skullet.lochie.me) 0.0.3이 위젯 자신의 레이아웃으로 스켈레톤을 그린다. 타입별 샘플 데이터를 보이지 않게 렌더해 측정하고, 한 번 내용을 보인 위젯은 그 모양을 `localStorage`에 기억해 다음 스켈레톤에 쓴다. 차트는 측정하지 않고 플롯 영역 하나를 블록으로 그린다. Skullet은 내용을 보이는 동안에도 모양을 계속 다시 재므로, 값이 없던 적이 없는 위젯에는 붙이지 않는다. 열려 있는 위젯도 값을 잃으면 그때부터 붙는다 |
 | 캔버스 (결정 3, 스파이크) | Excalidraw 0.18.1. 위젯은 `embeddable` 요소로 투영, 사람의 드로잉은 `~/.exprything/drawings/`에 저장. React Flow는 제거. 근거와 결과는 [research/excalidraw.md](research/excalidraw.md) 10장 |

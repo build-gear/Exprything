@@ -14,9 +14,13 @@ export function WidgetCard({ view: n, look, active = false }: { view: NodeView; 
   const { api, canvas, reload } = useContext(CanvasCtx);
   const Widget = widgets[n.type];
   const st = n.sourceState;
-  // Only a widget that starts without its first value gets a Skullet reveal: once content shows, a
-  // reveal keeps re-measuring it to remember its shape, which live widgets would pay on every update.
-  const [awaitsData] = useState(() => !!Widget && !!n.source && n.data === undefined);
+  // A widget gets a Skullet reveal the first time it has no value (a new recipe, or a value dropped
+  // when its command changed) and keeps it, so the reveal can play when data lands. Widgets that
+  // always had a value go without: once content shows, a reveal keeps re-measuring it to remember
+  // its shape, which live widgets would pay on every update.
+  const waiting = !!Widget && !!n.source && n.data === undefined;
+  const [revealable, setRevealable] = useState(waiting);
+  if (waiting && !revealable) setRevealable(true);
   const ink = inkOf(look);
   const className = ['wn', st && `st-${st.status}`, active && 'is-active'].filter(Boolean).join(' ');
   const vars = { '--w-font': fontStack(look), '--w-ink': ink, '--w-line': look.strokeStyle } as CSSProperties;
@@ -47,9 +51,10 @@ export function WidgetCard({ view: n, look, active = false }: { view: NodeView; 
       )}
       {(n.error || st?.lastError) && <div className="wn-banner bad" title={n.error ?? st?.lastError}>{n.error ?? st?.lastError}</div>}
       <div className="wn-body">
-        {awaitsData ? (
-          // A skeleton traced from sample data while the source runs for the first time. Waiting on
-          // anything else (approval, a failing source) shows the widget as it is.
+        {revealable ? (
+          // A skeleton while the source runs with no value to show, traced from sample data or the
+          // shape last shown. Waiting on anything else (approval, a failing source) shows the widget
+          // as it is.
           <Skeleton
             id={`${canvas}/${n.id}`}
             data={n.data === undefined ? null : n}
