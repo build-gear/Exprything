@@ -1,0 +1,13 @@
+{
+  "name": "@exprything/mcp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@exprything/client": "workspace:*",
+    "@exprything/schema": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  }
+}

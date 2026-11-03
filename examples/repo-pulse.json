@@ -1,0 +1,93 @@
+{
+  "canvas": "repo-pulse",
+  "title": "Repo pulse",
+  "ops": [
+    {
+      "op": "source.upsert",
+      "source": {
+        "id": "commits-daily",
+        "kind": "exec",
+        "cmd": ["sh", "-c", "git log --since=30.days --date=short --pretty=%ad | sort | uniq -c"],
+        "cwd": "~/path/to/your/repo",
+        "parse": "lines",
+        "transform": "$map($, function($l){ ( $p := $split($trim($l), \" \"); {\"day\": $p[1], \"count\": $number($p[0])} ) })",
+        "refresh": { "every": "10m" }
+      }
+    },
+    {
+      "op": "source.upsert",
+      "source": {
+        "id": "todo-count",
+        "kind": "exec",
+        "cmd": ["sh", "-c", "git grep -I -o -E 'TODO|FIXME' | wc -l"],
+        "cwd": "~/path/to/your/repo",
+        "parse": "text",
+        "transform": "$number($trim($))",
+        "refresh": { "every": "10m" },
+        "history": { "keep": "90d" }
+      }
+    },
+    {
+      "op": "source.upsert",
+      "source": {
+        "id": "recent-commits",
+        "kind": "exec",
+        "cmd": ["git", "log", "-n", "15", "--pretty=%h%x09%an%x09%cr%x09%s"],
+        "cwd": "~/path/to/your/repo",
+        "parse": "lines",
+        "transform": "$map($, function($l){ ( $p := $split($l, \"\\t\"); {\"sha\": $p[0], \"author\": $p[1], \"when\": $p[2], \"subject\": $p[3]} ) })",
+        "refresh": { "every": "5m" }
+      }
+    },
+    {
+      "op": "node.upsert",
+      "node": {
+        "id": "about",
+        "type": "markdown",
+        "title": "About",
+        "props": { "text": "### Repo pulse\nDrawn once by an agent. Every number here refreshes on its own schedule with no AI calls." }
+      }
+    },
+    {
+      "op": "node.upsert",
+      "node": {
+        "id": "todos",
+        "type": "stat",
+        "title": "TODO / FIXME",
+        "source": "todo-count",
+        "use": "history",
+        "transform": "{ \"value\": $[-1].value, \"delta\": $count($) > 1 ? $[-1].value - $[0].value : 0, \"series\": [value] }",
+        "props": { "unit": "markers" },
+        "layout": { "near": "about", "side": "right" }
+      }
+    },
+    {
+      "op": "node.upsert",
+      "node": {
+        "id": "commits-chart",
+        "type": "chart",
+        "title": "Commits per day (30d)",
+        "source": "commits-daily",
+        "props": {
+          "option": {
+            "xAxis": { "type": "category" },
+            "yAxis": { "type": "value", "minInterval": 1 },
+            "series": [{ "type": "bar", "encode": { "x": "day", "y": "count" } }]
+          }
+        },
+        "layout": { "near": "about", "side": "below" }
+      }
+    },
+    {
+      "op": "node.upsert",
+      "node": {
+        "id": "commits-table",
+        "type": "table",
+        "title": "Recent commits",
+        "source": "recent-commits",
+        "props": { "columns": ["sha", "when", "author", "subject"] },
+        "layout": { "near": "commits-chart", "side": "right" }
+      }
+    }
+  ]
+}

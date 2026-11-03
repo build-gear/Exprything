@@ -1,0 +1,17 @@
+{
+  "name": "exprything",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.26.1",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "exp": "node packages/cli/bin/exp.js",
+    "dev:ui": "pnpm --filter @exprything/ui dev",
+    "build": "pnpm --filter @exprything/ui build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3"
+  }
+}

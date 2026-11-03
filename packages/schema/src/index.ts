@@ -1,0 +1,182 @@
+import { z } from 'zod';
+
+export * from './catalog.ts';
+
+// ---------- primitives ----------
+
+export const Id = z
+  .string()
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/, 'ids are 1-64 chars of [a-zA-Z0-9_.-]');
+
+export const Duration = z
+  .string()
+  .regex(/^\d+(ms|s|m|h|d)$/, 'duration like "30s", "10m", "1h", "1d"');
+
+const UNIT_MS = { ms: 1, s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 } as const;
+
+export function parseDuration(s: string): number {
+  const m = /^(\d+)(ms|s|m|h|d)$/.exec(s);
+  if (!m) throw new Error(`invalid duration: ${s}`);
+  return Number(m[1]) * UNIT_MS[m[2] as keyof typeof UNIT_MS];
+}
+
+export const ParseMode = z
+  .enum(['json', 'jsonl', 'csv', 'lines', 'text'])
+  .describe('how raw output is parsed before the transform runs');
+
+// ---------- sources: recipes that refresh themselves ----------
+
+const sourceBase = {
+  id: Id,
+  title: z.string().optional(),
+  transform: z
+    .string()
+    .optional()
+    .describe('JSONata expression applied to the parsed output. Must be deterministic.'),
+  refresh: z
+    .object({
+      every: Duration.optional().describe('re-run interval, e.g. "10m"'),
+      onChange: z.boolean().optional().describe('file sources: re-run when the file changes (default true)'),
+    })
+    .optional(),
+  history: z
+    .object({ keep: Duration.describe('how long samples are kept, default "30d"') })
+    .optional(),
+};
+
+export const StaticSource = z.object({
+  ...sourceBase,
+  kind: z.literal('static'),
+  data: z.unknown().describe('inline data. Use only for notes; prefer a recipe that can re-derive the value.'),
+});
+
+export const PushSource = z.object({
+  ...sourceBase,
+  kind: z.literal('push'),
+  maxItems: z.number().int().positive().max(100_000).default(500),
+});
+
+export const ExecSource = z.object({
+  ...sourceBase,
+  kind: z.literal('exec'),
+  cmd: z.array(z.string()).min(1).describe('argv, e.g. ["git","log","--pretty=%cI"]. Use ["sh","-c","..."] for pipes.'),
+  cwd: z.string().optional().describe('working directory; ~ is expanded'),
+  parse: ParseMode.default('text'),
+  timeoutMs: z.number().int().positive().max(600_000).default(30_000),
+});
+
+export const FileSource = z.object({
+  ...sourceBase,
+  kind: z.literal('file'),
+  path: z.string().describe('absolute path or ~/...'),
+  parse: ParseMode.default('json'),
+});
+
+export const Source = z.discriminatedUnion('kind', [StaticSource, PushSource, ExecSource, FileSource]);
+export type Source = z.infer<typeof Source>;
+export type SourceInput = z.input<typeof Source>;
+
+export const SourceStatus = z.enum(['pending', 'fresh', 'stale', 'error', 'needs_approval']);
+export type SourceStatus = z.infer<typeof SourceStatus>;
+
+export interface SourceState {
+  id: string;
+  kind: Source['kind'];
+  status: SourceStatus;
+  lastRunAt?: string;
+  lastSuccessAt?: string;
+  nextRunAt?: string;
+  lastError?: string;
+  failures: number;
+}
+
+// ---------- nodes: views over sources ----------
+
+export const WidgetType = z.enum(['markdown', 'chart', 'table', 'stat', 'log']);
+export type WidgetType = z.infer<typeof WidgetType>;
+
+export const Layout = z
+  .object({
+    x: z.number().optional(),
+    y: z.number().optional(),
+    w: z.number().positive().optional(),
+    h: z.number().positive().optional(),
+    near: Id.optional().describe('place next to this node id'),
+    side: z.enum(['right', 'below']).optional(),
+  })
+  .describe('express intent; omit to auto-place. Nodes the user moved are pinned and keep their position.');
+
+export const CanvasNode = z.object({
+  id: Id,
+  type: WidgetType,
+  title: z.string().optional(),
+  source: Id.optional().describe('source id this node renders'),
+  use: z
+    .enum(['latest', 'history'])
+    .default('latest')
+    .describe('"latest" = current value; "history" = [{ts, value}] samples accumulated over time'),
+  transform: z.string().optional().describe('JSONata applied to the node input (latest value or history array)'),
+  props: z.record(z.string(), z.unknown()).default({}).describe('widget-specific props, see catalog'),
+  layout: Layout.optional(),
+});
+export type CanvasNode = z.infer<typeof CanvasNode>;
+export type CanvasNodeInput = z.input<typeof CanvasNode>;
+
+export type StoredNode = CanvasNode & { x: number; y: number; w: number; h: number; pinned: boolean };
+
+export interface Canvas {
+  id: string;
+  title: string;
+  nodes: StoredNode[];
+  updatedAt: string;
+}
+
+// ---------- operations ----------
+
+export const Op = z.discriminatedUnion('op', [
+  z.object({ op: z.literal('source.upsert'), source: Source }),
+  z.object({ op: z.literal('source.delete'), id: Id }),
+  z.object({ op: z.literal('node.upsert'), node: CanvasNode }),
+  z.object({ op: z.literal('node.delete'), id: Id }),
+]);
+export type Op = z.infer<typeof Op>;
+
+export const ApplyRequest = z.object({
+  canvas: Id.default('main'),
+  title: z.string().optional(),
+  ops: z.array(Op).min(1).max(200),
+  dryRun: z
+    .boolean()
+    .default(false)
+    .describe('run every touched source once and render every touched node without saving'),
+});
+export type ApplyRequest = z.infer<typeof ApplyRequest>;
+export type ApplyRequestInput = z.input<typeof ApplyRequest>;
+
+export interface DryRunResult {
+  ok: boolean;
+  sources: { id: string; ok: boolean; sample?: unknown; error?: string }[];
+  nodes: { id: string; ok: boolean; sample?: unknown; error?: string }[];
+}
+
+export interface ApplyResult {
+  canvas: string;
+  applied: number;
+  needsApproval: string[];
+  url: string;
+}
+
+// ---------- view (what the UI renders) ----------
+
+export interface NodeView extends StoredNode {
+  data?: unknown;
+  error?: string;
+  sourceState?: SourceState;
+}
+
+export interface CanvasView {
+  canvas: { id: string; title: string; updatedAt: string };
+  nodes: NodeView[];
+}
+
+export type ServerMessage = { type: 'changed'; canvas?: string; source?: string };

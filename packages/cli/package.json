@@ -1,0 +1,15 @@
+{
+  "name": "@exprything/cli",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": { "exp": "./bin/exp.js" },
+  "dependencies": {
+    "@exprything/client": "workspace:*",
+    "@exprything/daemon": "workspace:*",
+    "@exprything/mcp": "workspace:*",
+    "@exprything/schema": "workspace:*",
+    "commander": "^15.0.0",
+    "tsx": "^4.23.15"
+  }
+}
