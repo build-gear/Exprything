@@ -67,7 +67,7 @@ State lives in `~/.exprything` (override with `EXPRYTHING_HOME`); the daemon lis
 
 The canvas is [Excalidraw](https://github.com/excalidraw/excalidraw): people can draw shapes, text and arrows around the live widgets, and drawings are saved to `~/.exprything/drawings/`.
 Widgets stay owned by agent recipes: moving or resizing one pins it, deleting one is undone.
-While a widget's source runs and the widget has no value yet (a new or changed recipe, or one just approved), it shows a skeleton of its own layout, drawn by [Skullet](https://skullet.lochie.me).
+Until a widget has a value (a new or changed recipe), the whole widget is drawn as a skeleton of its own layout by [Skullet](https://skullet.lochie.me). It shimmers while the recipe runs and holds still under the banner while it waits for approval.
 Switch canvases from the menu in the top-left corner; the top-right corner shows the canvas's sources and any that await approval or repair.
 The Excalidraw renderer is still a spike (see [docs/research/excalidraw.md](docs/research/excalidraw.md), section 10.5).
 

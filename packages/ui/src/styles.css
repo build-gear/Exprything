@@ -123,9 +123,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   border: 1px solid currentColor; background: none; color: inherit; border-radius: 5px; padding: 0 6px;
 }
 .wn-body { flex: 1; min-height: 0; overflow: auto; cursor: default; }
-/* A widget awaiting its first value is wrapped in Skullet's reveal (WidgetCard); its layers fill the
-   body as the widget itself would, so full-height widgets measure at their real size. */
-.wn-body > [skullet-reveal], .wn-body [skullet-pane], .wn-body [skullet-loading], .wn-body [skullet-ghost] { height: 100%; }
+/* A widget without a value is drawn whole as a skeleton by Skullet (WidgetCard), under any banner
+   that asks the person to act. Skullet's layers fill the space as the card itself would, so the card
+   measures at its real size; while the widget is blocked rather than loading, the skeleton holds still. */
+.wn-reveal { height: 100%; display: flex; flex-direction: column; font-family: var(--w-font, inherit); }
+.wn-reveal > [skullet-reveal] { flex: 1; min-height: 0; }
+.wn-reveal [skullet-pane], .wn-reveal [skullet-loading], .wn-reveal [skullet-ghost], .wn-reveal [skullet-snapshot] { height: 100%; }
+.wn-reveal.is-still { --skullet-animation: none; }
+.wn-reveal [skullet-loading] .wn-body { overflow: hidden; }
 .wn-body [skullet-own] { display: block; height: 100%; }
 
 /* Excalidraw renderer. Embeds let the pointer through, so wheel pans the canvas and a click selects
