@@ -465,5 +465,52 @@ const EmbeddedWidget = memo(function EmbeddedWidget({ nodeId }: { nodeId: string
   const ui = useContext(UiCtx);
   const active = useSyncExternalStore(ui.subscribe, () => ui.active === nodeId);
   const look = useMemo(() => resolveLook(canvasStyle, view?.style), [canvasStyle, view?.style]);
-  return <div className="wn-embed">{view && <WidgetCard view={view} look={look} active={active} />}</div>;
+  const host = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    // Non-passive, so a wheel the widget cannot use can be cancelled here and handed to the canvas.
+    const onWheel = (e: WheelEvent) => passUnusedWheel(e, el);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  return <div ref={host} className="wn-embed">{view && <WidgetCard view={view} look={look} active={active} />}</div>;
 });
+
+/**
+ * A selected widget takes the wheel, but only what it can use: once nothing under the pointer can
+ * scroll further that way (a chart, a short table, the end of a log), the wheel goes on to the canvas,
+ * as nested scrolling does in a page. Pinch and Ctrl/Cmd+wheel always zoom the canvas. Excalidraw
+ * only pans for wheel events aimed at its canvas, so the event is re-sent there.
+ */
+function passUnusedWheel(e: WheelEvent, container: HTMLElement) {
+  const zoom = e.ctrlKey || e.metaKey;
+  if (!zoom && canScroll(e.target as Element, container, e.deltaX, e.deltaY)) return;
+  const canvas = container.closest('.excalidraw')?.querySelector<HTMLCanvasElement>('canvas.interactive');
+  if (!canvas) return;
+  e.preventDefault();
+  e.stopPropagation();
+  canvas.dispatchEvent(new WheelEvent('wheel', {
+    deltaX: e.deltaX, deltaY: e.deltaY, deltaZ: e.deltaZ, deltaMode: e.deltaMode,
+    clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY,
+    ctrlKey: e.ctrlKey, metaKey: e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey,
+    bubbles: true, cancelable: true,
+  }));
+}
+
+/** Whether an element between `from` and `container` can still scroll in the wheel's direction. */
+function canScroll(from: Element | null, container: Element, dx: number, dy: number): boolean {
+  for (let el = from; el; el = el.parentElement) {
+    const style = getComputedStyle(el);
+    if (dy !== 0 && /auto|scroll/.test(style.overflowY) && el.scrollHeight > el.clientHeight) {
+      if (dy > 0 ? el.scrollTop + el.clientHeight < el.scrollHeight - 1 : el.scrollTop > 0) return true;
+    }
+    if (dx !== 0 && /auto|scroll/.test(style.overflowX) && el.scrollWidth > el.clientWidth) {
+      if (dx > 0 ? el.scrollLeft + el.clientWidth < el.scrollWidth - 1 : el.scrollLeft > 0) return true;
+    }
+    if (el === container) break;
+  }
+  return false;
+}
