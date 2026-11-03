@@ -162,6 +162,7 @@
 - **`customData`를 진실로 쓴다.** 임의 `Record<string, any>`이고([element/types.ts L79](https://github.com/excalidraw/excalidraw/blob/v0.18.1/packages/excalidraw/element/types.ts#L79), [props.mdx L35](https://github.com/excalidraw/excalidraw/blob/v0.18.1/dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx#L35)), 0.18.0부터 restore가 모르는 속성도 지우지 않는다([CHANGELOG L276](https://github.com/excalidraw/excalidraw/blob/v0.18.1/packages/excalidraw/CHANGELOG.md#L276)). `renderEmbeddable(el)`에서 `el.customData.exprything.node`로 노드 id를 읽는다(실측).
 - **`link`는 검증 통과용**으로만 둔다. `exprything:node/<id>`는 `normalizeLink`(@braintree/sanitize-url)를 그대로 통과하고 `javascript:`는 `about:blank`가 됐다(실측, [url.ts L4-L10](https://github.com/excalidraw/excalidraw/blob/v0.18.1/packages/excalidraw/data/url.ts#L4-L10)). `validateEmbeddable={(l) => l.startsWith("exprything:")}`처럼 우리 스킴만 true, 나머지는 false로 두면 외부 iframe 임베드가 막혀 로컬 우선 원칙과도 맞는다.
 - 사람은 속성 패널의 링크 버튼으로 link를 바꿀 수 있다(실측 스크린샷). 그래서 link가 아니라 `customData`를 기준으로 삼는다. 이 편집 UI를 끄는 prop은 0.18.1에서 찾지 못했다(**미확인**).
+- **검증은 요소 id마다 한 번이다.** `updateEmbeddables`는 처음 보는 embeddable만 검사하고 결과를 id별로 기억한다. 그 뒤 link가 바뀌어도 다시 검사하지 않고, 링크 편집기가 닫히며 저장할 때만 다시 정한다(빈 값이면 실패)([App.tsx](https://github.com/excalidraw/excalidraw/blob/v0.18.1/packages/excalidraw/components/App.tsx), [Hyperlink.tsx](https://github.com/excalidraw/excalidraw/blob/v0.18.1/packages/excalidraw/components/hyperlink/Hyperlink.tsx)). 한편 link가 있는 요소에는 선택되지 않은 동안 오른쪽 위에 링크 아이콘이 그려진다([staticScene.ts](https://github.com/excalidraw/excalidraw/blob/v0.18.1/packages/excalidraw/renderer/staticScene.ts)의 `renderLinkIcon`). 그래서 위젯은 첫 렌더 전과 선택된 동안에만 link를 갖는다(10.5).
 
 ---
 
@@ -470,6 +471,7 @@ flowchart LR
 | 에이전트 이동 | 고정 안 된 노드를 `exp apply`로 옮기면 위젯이 이동. **바인딩된 화살표는 따라오지 않았다**(Excalidraw는 자체 드래그·리사이즈 때만 화살표를 다시 잇는다). 투영 단계에서 화살표 끝점을 위젯 이동량만큼 옮기도록 보완했고(`followMovedWidgets`), 이후 화살표가 붙은 채 이동함을 확인 |
 | 화살표 → 위젯 바인딩 | 에디터에서 위젯에 화살표를 붙일 수 있다(포인터 이동을 거친 실제 드래그 기준). 위젯 요소는 저장하지 않으므로 다시 열면 위젯 쪽 `boundElements`가 비어 있었다. 로드할 때 드로잉의 화살표로부터 복원하도록 보완(`withArrowBindings`) |
 | 위젯 삭제·복제 | 삭제하면 즉시 복원, 복제본은 제거. 각각 토스트로 이유를 알린다 |
+| 링크 아이콘 | link가 있는 요소마다 Excalidraw가 오른쪽 위에 ↗를 그리고, 끄는 prop은 없다. 위젯은 렌더된 뒤에는 선택된 동안에만 link를 갖게 해서 없앴다(`syncLinks`. 선택된 요소에는 아이콘을 그리지 않는다). 처음에는 Cmd/Ctrl+K로 연 편집기가 빈 입력을 저장해 위젯이 'Empty Web-Embed'로 바뀌었다. 선택과 함께 열리는 링크 팝업이 link가 돌아오기 전의 위젯을 읽기 때문이다. 그 팝업을 닫고, 위젯 위에서나 선택이 없을 때 열린 편집기도 닫도록 보완했다. 선택 → Cmd/Ctrl+K → 해제, 박스 선택, 선택 안 된 위젯을 바로 드래그하기와 그 실행 취소, 실행 취소·다시 실행으로 바뀌는 선택, 화면 밖에서 들어오는 위젯, 에이전트가 추가한 위젯, 복제에서 위젯이 유지되고 아이콘이 화면에 나오지 않음을 확인(dev 서버). 아이콘이 버퍼에 그려지는 경우에도 같은 task 안에서 다시 지워진다 |
 | 다크 모드 | Excalidraw 캔버스(필터 반전)와 위젯(자체 다크 테마)이 맞는다. 둘 다 `prefers-color-scheme`을 따른다 |
 | StrictMode | React 에러 없음. 이중 마운트 때 나던 WebSocket 경고는 연결 중인 소켓을 정리하는 방식을 바꿔 없앴다 |
 | 성능 | 위젯 37개(ECharts 36) 마운트 상태에서 팬 1스텝의 JS·React 비용 평균 1.18 ms, p95 2.8 ms. 브라우저 패널이 숨겨진 상태라 페인트·합성 비용은 재지 못했다 |
@@ -477,7 +479,7 @@ flowchart LR
 
 **남은 문제**
 1. **z-order**: 화살표가 위젯 밑으로 지나가는 것을 실제 화면에서 확인했다(4.2, 9.4).
-2. **링크 아이콘**: Excalidraw가 위젯마다 링크 아이콘(↗)을 그린다. 클릭 시 이동은 `onLinkOpen`으로 막았지만 아이콘을 숨기는 방법은 찾지 못했다.
+2. ~~**링크 아이콘**~~: 해결(위 표). 위젯은 렌더된 뒤에는 선택된 동안에만 link를 갖는다.
 3. **회전**: 위젯의 회전 각도는 저장하지 않는다(다시 열면 0도).
 4. **동시 편집**: 드로잉 저장은 통째로 덮어쓴다(마지막 저장이 이긴다). 같은 캔버스를 두 탭에서 동시에 그리면 한쪽 변경이 사라질 수 있다. 7.3의 필드 단위 병합은 아직 없다.
 5. **이미지**: 이미지를 dataURL 그대로 드로잉 JSON에 넣는다. 10.2의 `files/` 분리는 아직 없다.
@@ -519,7 +521,7 @@ flowchart LR
 7. **전역 부작용**: `langCode`가 `<html lang/dir>`을 바꾼다. Excalidraw가 포커스를 가지면 단축키가 동작하므로 위젯 안 입력창과 충돌하지 않는지 확인해야 한다.
 8. **크기**: 첫 로드 JS +약 0.9 MiB(React Flow 대비, min), lazy 6.9 MiB, 폰트 13 MB. 로컬 서빙이라 네트워크 비용보다 파싱 시간이 문제다.
 9. **다크 모드**: 캔버스는 CSS filter로 반전하고 위젯(DOM)은 반전하지 않는다. 위젯이 `theme` prop을 따라야 한다(현재 위젯은 `prefers-color-scheme` 기준).
-10. **사용자의 링크 편집**: 사람이 embeddable의 link를 바꿀 수 있다. `customData` 기준 식별과 `validateEmbeddable` 화이트리스트로 완화한다.
+10. **사용자의 링크 편집**: 위젯에서는 링크 편집기가 열리자마자 닫혀 link를 바꿀 수 없다(10.5). 식별은 `customData` 기준이고 `validateEmbeddable`은 우리 스킴만 허용한다. 링크 아이콘을 없앤 방식은 Excalidraw 내부 동작(검증을 id별로 한 번만 함, 편집기가 닫힐 때 입력을 저장함)에 기대므로 버전을 올릴 때 다시 확인해야 한다.
 
 **열린 질문**
 
@@ -539,7 +541,7 @@ flowchart LR
 3. ~~**React StrictMode에서의 동작**~~: 스파이크에서 확인(10.5). React 에러 없음.
 4. **ECharts 위젯 수십 개를 embeddable로 띄웠을 때의 성능**: 스파이크에서 JS·React 비용만 확인(10.5, 36개에서 팬 1스텝 평균 1.18 ms). 페인트·합성 비용은 여전히 미확인.
 5. ~~**Vite 8 dev 서버(optimizeDeps·HMR)**~~: 스파이크에서 dev 서버로 로드·HMR 확인(10.5). 별도 설정 없이 동작.
-6. **embeddable 링크 편집 UI를 끄는 방법**: 0.18.1 props·UIOptions에서 찾지 못했다.
+6. **embeddable 링크 편집 UI를 끄는 방법**: 0.18.1 props·UIOptions에서 찾지 못했다. 위젯에서는 열리자마자 닫는 것으로 대신한다(10.5).
 7. **jsdom 대신 linkedom/happy-dom으로 Node 변환**: 시험하지 않았다.
 8. **터치/모바일의 embeddable 활성화 UX**: 소스에 모바일 전용 경로가 있으나 실측하지 않았다.
 9. **`next` 빌드의 브라우저 동작**: `renderEmbeddable`·`validateEmbeddable`가 같은 시그니처로 남아 있음은 타입으로만 확인했다. 브라우저 실측은 0.18.1만 했다.

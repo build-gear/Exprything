@@ -83,9 +83,9 @@ function widgetAt(elements: readonly ExcalidrawElement[], x: number, y: number):
   return null;
 }
 
-/** Any embed pointing at a widget, including copies a person made of one. */
+/** Any embed of a widget, including copies a person made of one (copies keep customData). */
 function isWidgetEmbed(el: ExcalidrawElement): boolean {
-  return el.type === 'embeddable' && (el.link ?? '').startsWith(LINK_PREFIX);
+  return el.type === 'embeddable' && el.customData?.exprything !== undefined;
 }
 
 /** Widget elements are projections of nodes, never part of the saved drawing. */
@@ -174,6 +174,8 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
   const appliedFrame = useRef(new Map<string, Frame>());
   /** Geometry last received from the daemon. A widget whose element differs from it was edited by the person. */
   const applied = useRef(new Map<string, Rect>());
+  /** Widget elements Excalidraw has rendered, which it does only after accepting their link (see syncLinks). */
+  const rendered = useRef(new Set<string>());
   const pointerDown = useRef(false);
   const projectionPending = useRef(false);
   const savedSignature = useRef('');
@@ -278,10 +280,6 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
         toast = 'Widgets belong to agent recipes. Remove them through the agent or `exp apply`.';
         return newElementWith(el, { isDeleted: false });
       }
-      if (el.link !== `${LINK_PREFIX}${id}`) {
-        toast = 'A widget\'s link cannot be changed.';
-        return newElementWith(el, { link: `${LINK_PREFIX}${id}` });
-      }
       const rect = rectOfElement(el);
       const last = applied.current.get(id);
       if (last && !sameRect(rect, last)) {
@@ -302,6 +300,42 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
       excalidraw.setToast({ message: toast, duration: 4000 });
     }
   }, [excalidraw, api, canvas]);
+
+  /**
+   * Excalidraw draws a link icon beside every unselected element that has a link, yet renders an
+   * embed only if it had a link when first seen (the verdict is kept per element id). So a widget
+   * carries its link until it has rendered, and after that only while selected, when no icon is
+   * drawn.
+   *
+   * Excalidraw's link editor saves its input when it closes, and saving an empty link stops the
+   * widget rendering. The input is filled when the link popup opens, which on a click is before the
+   * widget's link is back, so that popup is closed (Excalidraw reopens it on hover, with the link).
+   * The editor is also closed on a widget, where it is hidden anyway, and with no single element
+   * selected, where Excalidraw leaves it open and an undo could bring it back on a bare widget.
+   */
+  const syncLinks = useCallback((appState: AppState, selected: string[]) => {
+    if (!excalidraw) return;
+    let changed = false;
+    let relinked = false;
+    const next = excalidraw.getSceneElementsIncludingDeleted().map((el) => {
+      const id = widgetNodeId(el);
+      if (!id || el.isDeleted) return el;
+      const link = appState.selectedElementIds[el.id] || !rendered.current.has(el.id) ? `${LINK_PREFIX}${id}` : null;
+      if (el.link === link) return el;
+      changed = true;
+      relinked ||= link !== null;
+      return newElementWith(el, { link });
+    });
+    const popup = appState.showHyperlinkPopup;
+    const editorMisplaced = popup === 'editor' && (selected.length !== 1 || nodeIdOfElementId(selected[0]) !== undefined);
+    const closePopup = !!popup && (relinked || editorMisplaced);
+    if (!changed && !closePopup) return;
+    excalidraw.updateScene({
+      elements: changed ? next : undefined,
+      appState: closePopup ? { showHyperlinkPopup: false } : null,
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, [excalidraw]);
 
   const flushSave = useCallback((keepalive = false) => {
     clearTimeout(saveTimer.current);
@@ -359,6 +393,7 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     // Clicking a widget selects it; a widget selected on its own takes wheel and pointer input.
     const selected = Object.keys(appState.selectedElementIds).filter((id) => appState.selectedElementIds[id]);
     ui.setActive(selected.length === 1 ? nodeIdOfElementId(selected[0]) ?? null : null);
+    syncLinks(appState, selected);
     placeOutline(); // panned, zoomed or moved
 
     clearTimeout(syncTimer.current);
@@ -375,7 +410,7 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     };
     clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => flushSave(), SAVE_DELAY_MS);
-  }, [ui, placeOutline, syncWidgets, flushSave]);
+  }, [ui, syncLinks, placeOutline, syncWidgets, flushSave]);
 
   const onPointerUpdate = useCallback(({ pointer }: { pointer: { x: number; y: number } }) => {
     if (excalidraw) ui.setHovered(widgetAt(excalidraw.getSceneElements(), pointer.x, pointer.y));
@@ -400,7 +435,9 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
 
   const renderEmbeddable = useCallback((el: NonDeleted<ExcalidrawEmbeddableElement>) => {
     const id = (el.customData?.exprything as { node?: string } | undefined)?.node ?? widgetNodeId(el);
-    return id ? <EmbeddedWidget nodeId={id} /> : null;
+    if (!id) return null;
+    rendered.current.add(el.id);
+    return <EmbeddedWidget nodeId={id} />;
   }, []);
 
   const initialData = useMemo(
@@ -446,7 +483,7 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
 /** Only our own widget links may embed; external sites stay out of a local-first canvas. */
 const validateEmbeddable = (link: string) => link.startsWith('exprything:');
 
-/** The link icon Excalidraw draws on every widget must not try to open our internal scheme. */
+/** A widget's link is internal (see syncLinks) and must never be opened as a URL. */
 const onLinkOpen = (el: NonDeleted<ExcalidrawElement>, event: CustomEvent) => {
   if (el.link?.startsWith('exprything:')) event.preventDefault();
 };
