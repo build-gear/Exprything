@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify';
 import * as echarts from 'echarts';
 import { marked } from 'marked';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SkeletonBox } from 'skullet/react';
 import { fontStack, inkOf, loadFonts, seriesColors, type Look } from '../style.ts';
 import { SketchChart, SketchSparkline, sketchSeries } from './sketch.tsx';
 
@@ -36,6 +37,11 @@ export function Chart({ data, props, look, seedKey = '' }: Props) {
   if (sketch && look) return <SketchChart rows={rows} series={sketch} look={look} seedKey={seedKey} />;
   return <EChart data={data} option={props.option} look={look} />;
 }
+
+/** While loading, a chart is one block over its plot area (the ECharts grid inset), not measured. */
+Chart.Skeleton = function ChartSkeleton() {
+  return <div className="w-chart-skeleton"><SkeletonBox width="100%" height="100%" /></div>;
+};
 
 /**
  * Always drawn with the light theme: in dark mode Excalidraw's canvas filter, which reaches every
@@ -162,6 +168,27 @@ export function Log({ data, props }: Props) {
     if (el.current) el.current.scrollTop = el.current.scrollHeight;
   }, [lines.length]);
   return <pre ref={el} className="w-log">{lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n')}</pre>;
+}
+
+/**
+ * Data of typical length for a widget whose first value has not arrived. It is laid out unseen and
+ * traced into the loading skeleton (Skullet), so only its shape matters.
+ */
+export function sampleData(type: string, props: Record<string, unknown>): unknown {
+  switch (type) {
+    case 'markdown':
+      return '## A heading\n\nA paragraph of typical length, long enough to wrap onto a second line in most widgets.';
+    case 'table': {
+      const columns = (props.columns as string[] | undefined) ?? ['name', 'value', 'updated'];
+      return Array.from({ length: 6 }, () => Object.fromEntries(columns.map((c, i) => [c, i === 0 ? 'A row label' : 12_345])));
+    }
+    case 'stat':
+      return { value: 1_234 };
+    case 'log':
+      return Array.from({ length: 8 }, (_, i) => `12:00:0${i} a log line of typical length`);
+    default:
+      return null;
+  }
 }
 
 /** JSONata collapses one-item results to the item itself; treat a lone object as a single row. */

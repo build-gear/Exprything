@@ -1,8 +1,9 @@
 import { useContext, useEffect, useState, type CSSProperties } from 'react';
 import type { NodeView, SourceState } from '@exprything/schema';
+import { Skeleton } from 'skullet/react';
 import { CanvasCtx } from './context.ts';
 import { fontStack, inkOf, type Look } from './style.ts';
-import { widgets } from './widgets/index.tsx';
+import { sampleData, widgets } from './widgets/index.tsx';
 
 /**
  * The card every live widget is drawn in. It draws no lines of its own: a frame comes from its style
@@ -10,12 +11,18 @@ import { widgets } from './widgets/index.tsx';
  * its body.
  */
 export function WidgetCard({ view: n, look, active = false }: { view: NodeView; look: Look; active?: boolean }) {
-  const { api, reload } = useContext(CanvasCtx);
+  const { api, canvas, reload } = useContext(CanvasCtx);
   const Widget = widgets[n.type];
   const st = n.sourceState;
+  // Only a widget that starts without its first value gets a Skullet reveal: once content shows, a
+  // reveal keeps re-measuring it to remember its shape, which live widgets would pay on every update.
+  const [awaitsData] = useState(() => !!Widget && !!n.source && n.data === undefined);
   const ink = inkOf(look);
   const className = ['wn', st && `st-${st.status}`, active && 'is-active'].filter(Boolean).join(' ');
   const vars = { '--w-font': fontStack(look), '--w-ink': ink, '--w-line': look.strokeStyle } as CSSProperties;
+
+  const body = (v: NodeView) =>
+    Widget ? <Widget data={v.data} props={v.props} look={look} seedKey={n.id} /> : <div>Unknown widget: {n.type}</div>;
 
   const approve = async () => {
     const src = (await api.sources()).find((s) => s.id === n.source);
@@ -40,7 +47,20 @@ export function WidgetCard({ view: n, look, active = false }: { view: NodeView; 
       )}
       {(n.error || st?.lastError) && <div className="wn-banner bad" title={n.error ?? st?.lastError}>{n.error ?? st?.lastError}</div>}
       <div className="wn-body">
-        {Widget ? <Widget data={n.data} props={n.props} look={look} seedKey={n.id} /> : <div>Unknown widget: {n.type}</div>}
+        {awaitsData ? (
+          // A skeleton traced from sample data while the source runs for the first time. Waiting on
+          // anything else (approval, a failing source) shows the widget as it is.
+          <Skeleton
+            id={`${canvas}/${n.id}`}
+            data={n.data === undefined ? null : n}
+            sample={{ ...n, data: sampleData(n.type, n.props) }}
+            empty={n.data === undefined && st?.status !== 'pending'}
+            emptyMessage={body(n)}
+            label={`Loading ${n.title ?? n.id}`}
+          >
+            {body}
+          </Skeleton>
+        ) : body(n)}
       </div>
     </div>
   );

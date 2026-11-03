@@ -83,6 +83,12 @@ export class SourceManager {
     if (src.kind !== 'exec') return;
     this.approvals[id] = approvalHash(src);
     this.persist();
+    const r = this.rt.get(id);
+    if (r?.state.status === 'needs_approval') {
+      // No longer waiting on the person but on its run, which can take a while; say so now.
+      r.state.status = 'pending';
+      this.onChange(id);
+    }
     void this.run(id);
   }
 

@@ -123,6 +123,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   border: 1px solid currentColor; background: none; color: inherit; border-radius: 5px; padding: 0 6px;
 }
 .wn-body { flex: 1; min-height: 0; overflow: auto; cursor: default; }
+/* A widget awaiting its first value is wrapped in Skullet's reveal (WidgetCard); its layers fill the
+   body as the widget itself would, so full-height widgets measure at their real size. */
+.wn-body > [skullet-reveal], .wn-body [skullet-pane], .wn-body [skullet-loading], .wn-body [skullet-ghost] { height: 100%; }
+.wn-body [skullet-own] { display: block; height: 100%; }
 
 /* Excalidraw renderer. Embeds let the pointer through, so wheel pans the canvas and a click selects
    or drags the widget. A selected widget's body takes the pointer (scroll, sort, tooltips); its
@@ -152,6 +156,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .w-markdown { padding: 4px 12px; }
 .w-markdown :first-child { margin-top: 6px; }
 .w-chart { width: 100%; height: 100%; }
+.w-chart-skeleton { height: 100%; padding: 24px 16px 28px 40px; }
 /* Separate borders and a z-index keep the sticky header painted over scrolled rows. */
 .w-table table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
 .w-table th, .w-table td {

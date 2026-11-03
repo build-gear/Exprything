@@ -365,9 +365,10 @@ exprything/
 | 실패 처리 | 실패 시 `error` 상태 + 마지막 정상 값 유지, 5s→10s→… 백오프(정상 주기 상한). repair 목록은 `source_status`/`exp status`로 노출 |
 | MCP 툴 | `catalog_get`, `canvas_apply(dryRun)`, `canvas_read`, `canvas_open`, `source_push`, `source_status`. `repair_list`는 `source_status`에 흡수. `events_poll`·`secret_request`는 v1 이후 |
 | 저장 위치 (결정 5, 잠정) | 사용자 전역 `~/.exprything/` (`canvases/*.json`, `sources.json`, `history.db`) |
-| exec 신뢰 모델 (결정 7, 잠정) | `cmd`+`cwd` 해시 단위 승인. 명령이 바뀌면 재승인 필요. 드라이런은 승인 없이 1회 실행(에이전트 자신의 권한으로 호출되므로) |
+| exec 신뢰 모델 (결정 7, 잠정) | `cmd`+`cwd` 해시 단위 승인. 명령이 바뀌면 재승인 필요. 드라이런은 승인 없이 1회 실행(에이전트 자신의 권한으로 호출되므로). 승인하면 첫 실행이 끝날 때까지 `pending` |
 | 레이아웃 | `near`/`side` 또는 자동 배치. 사용자가 옮기거나 크기를 바꾼 노드는 pinned |
 | 차트 (결정 2, 잠정) | ECharts option + `dataset.source` 주입 |
 | 패키지 | `widgets/` 폴더 없이 카탈로그는 `schema`, 렌더러는 `ui`에 둠. MCP 서버는 `exp mcp`로 CLI에 포함 |
 | 위젯 스타일 | Excalidraw 요소 속성과 같은 이름의 `style`(노드별, 캔버스 기본값). 테두리는 Excalidraw가 그리고, 글꼴·잉크 색은 HTML에, `roughness > 0`이면 막대·선 차트를 rough.js로 그린다. 사람이 스타일 패널로 바꾼 필드는 `stylePins`로 고정. [research/excalidraw.md](research/excalidraw.md) 10.6 |
+| 로딩 스켈레톤 | 첫 값을 기다리는 위젯(새 레시피, 승인 직후 첫 실행)은 [Skullet](https://skullet.lochie.me) 0.0.3이 위젯 자신의 레이아웃으로 스켈레톤을 그린다. 타입별 샘플 데이터를 보이지 않게 렌더해 측정하고, 한 번 내용을 보인 위젯은 그 모양을 `localStorage`에 기억해 다음 스켈레톤에 쓴다. 차트는 측정하지 않고 플롯 영역 하나를 블록으로 그린다. Skullet은 내용을 보이는 동안에도 모양을 계속 다시 재므로, 데이터와 함께 마운트된 위젯에는 붙이지 않는다 |
 | 캔버스 (결정 3, 스파이크) | Excalidraw 0.18.1. 위젯은 `embeddable` 요소로 투영, 사람의 드로잉은 `~/.exprything/drawings/`에 저장. React Flow는 제거. 근거와 결과는 [research/excalidraw.md](research/excalidraw.md) 10장 |
