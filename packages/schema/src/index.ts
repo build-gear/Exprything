@@ -90,6 +90,31 @@ export interface SourceState {
   failures: number;
 }
 
+// ---------- style: the same vocabulary as Excalidraw shapes ----------
+
+const Color = z
+  .string()
+  .regex(/^(transparent|#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})$/, 'hex color like "#1971c2", or "transparent"');
+
+/**
+ * Widget style, named like Excalidraw element properties. Frame properties are drawn by Excalidraw
+ * itself around the widget; fontFamily and strokeColor also restyle the widget's content.
+ */
+export const NodeStyle = z
+  .object({
+    strokeColor: Color.optional().describe('frame line, and the ink of titles, numbers and chart series'),
+    backgroundColor: Color.optional().describe('frame fill'),
+    fillStyle: z.enum(['hachure', 'cross-hatch', 'solid', 'zigzag']).optional().describe('how the frame and chart bars are filled'),
+    strokeWidth: z.number().min(0.5).max(8).optional().describe('Excalidraw uses 1, 2 or 4'),
+    strokeStyle: z.enum(['solid', 'dashed', 'dotted']).optional(),
+    roughness: z.number().min(0).max(2).optional().describe('0 architect (clean), 1 artist, 2 cartoonist. Above 0, bar and line charts are drawn by hand too'),
+    roundness: z.enum(['sharp', 'round']).optional(),
+    fontFamily: z.enum(['hand', 'normal', 'code']).optional().describe('hand = Excalifont handwriting, normal = Nunito, code = Comic Shanns'),
+    opacity: z.number().int().min(0).max(100).optional(),
+  })
+  .strict();
+export type NodeStyle = z.infer<typeof NodeStyle>;
+
 // ---------- nodes: views over sources ----------
 
 export const WidgetType = z.enum(['markdown', 'chart', 'table', 'stat', 'log']);
@@ -118,15 +143,27 @@ export const CanvasNode = z.object({
   transform: z.string().optional().describe('JSONata applied to the node input (latest value or history array)'),
   props: z.record(z.string(), z.unknown()).default({}).describe('widget-specific props, see catalog'),
   layout: Layout.optional(),
+  style: NodeStyle.optional().describe('overrides the canvas style for this widget'),
 });
 export type CanvasNode = z.infer<typeof CanvasNode>;
 export type CanvasNodeInput = z.input<typeof CanvasNode>;
 
-export type StoredNode = CanvasNode & { x: number; y: number; w: number; h: number; pinned: boolean };
+export type StoredNode = CanvasNode & {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** A person moved or resized it: agent updates keep its geometry. */
+  pinned: boolean;
+  /** Style fields a person changed on the canvas: agent updates keep their values. */
+  stylePins?: (keyof NodeStyle)[];
+};
 
 export interface Canvas {
   id: string;
   title: string;
+  /** Default style of every widget on the canvas. */
+  style?: NodeStyle;
   nodes: StoredNode[];
   updatedAt: string;
 }
@@ -144,6 +181,7 @@ export type Op = z.infer<typeof Op>;
 export const ApplyRequest = z.object({
   canvas: Id.default('main'),
   title: z.string().optional(),
+  style: NodeStyle.optional().describe('default style for every widget on the canvas; replaces the previous default'),
   ops: z.array(Op).min(1).max(200),
   dryRun: z
     .boolean()
@@ -175,7 +213,7 @@ export interface NodeView extends StoredNode {
 }
 
 export interface CanvasView {
-  canvas: { id: string; title: string; updatedAt: string };
+  canvas: { id: string; title: string; updatedAt: string; style?: NodeStyle };
   nodes: NodeView[];
 }
 

@@ -37,6 +37,7 @@ export class Engine {
   apply(req: ApplyRequest): ApplyResult {
     this.checkReferences(req);
     const canvas = this.canvases.ensure(req.canvas, req.title);
+    if (req.style) canvas.style = Object.keys(req.style).length ? req.style : undefined;
     const needsApproval: string[] = [];
     for (const op of req.ops) {
       switch (op.op) {
@@ -118,7 +119,7 @@ export class Engine {
     const c = this.canvases.get(canvasId);
     if (!c) return undefined;
     const nodes = await Promise.all(c.nodes.map((n) => this.nodeView(n)));
-    return { canvas: { id: c.id, title: c.title, updatedAt: c.updatedAt }, nodes };
+    return { canvas: { id: c.id, title: c.title, updatedAt: c.updatedAt, style: c.style }, nodes };
   }
 
   private async nodeView(n: StoredNode): Promise<NodeView> {

@@ -24,7 +24,8 @@ const tools = {
       'Create or update sources (self-refreshing data recipes) and nodes (views) on a canvas in one atomic batch. ' +
       'Exprything keeps nodes fresh on its own afterwards, with no further AI calls, so write HOW to compute data ' +
       '(exec command, file, push) with refresh.every and a JSONata transform, not hardcoded results. ' +
-      'Always call with dryRun=true first and check the samples. Ids are stable upsert keys.',
+      'Always call with dryRun=true first and check the samples. Ids are stable upsert keys. ' +
+      'Widgets can be styled like Excalidraw shapes ("style" on a node or the whole canvas; see catalog_get).',
     args: ApplyRequest,
   },
   canvas_read: {

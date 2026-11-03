@@ -74,6 +74,12 @@ export const widgetCatalog: Record<'markdown' | 'chart' | 'table' | 'stat' | 'lo
   },
 };
 
+/** Excalidraw's default color picks (open-color shade 8 for strokes, shade 2 for fills). */
+export const stylePalette = {
+  stroke: ['#1e1e1e', '#e03131', '#2f9e44', '#1971c2', '#f08c00'],
+  background: ['transparent', '#ffc9c9', '#b2f2bb', '#a5d8ff', '#ffec99'],
+};
+
 export const authoringGuide = `Exprything renders nodes on a canvas and keeps them fresh WITHOUT calling an AI again.
 Author recipes, not results:
 - Put the *way to compute* a value in a source (exec command / file / push), with refresh.every, plus a JSONata transform.
@@ -81,4 +87,9 @@ Author recipes, not results:
 - Always call canvas_apply with dryRun=true first, inspect the samples, then apply for real.
 - exec sources need a one-time human approval before they run on schedule; tell the user to approve in the canvas.
 - Use stable ids. Re-applying the same id updates in place.
-- node.use="history" gives [{ts, value}] samples the daemon accumulated, which is how trends appear over time.`;
+- node.use="history" gives [{ts, value}] samples the daemon accumulated, which is how trends appear over time.
+- The canvas is Excalidraw. Style widgets like its shapes with "style" (strokeColor, backgroundColor, fillStyle,
+  strokeWidth, strokeStyle, roughness, roundness, opacity, fontFamily): on a node, or for the whole canvas with the
+  apply request's "style". roughness above 0 also draws bar and line charts by hand. Prefer the palette colors.
+  Keep fills (hachure, cross-hatch) for stat and markdown widgets; they make charts and tables hard to read.
+- Style fields a person changed on the canvas stay as they set them; your updates do not override those.`;

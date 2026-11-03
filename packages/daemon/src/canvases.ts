@@ -1,6 +1,8 @@
 import { readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { widgetCatalog, type Canvas, type CanvasDrawing, type CanvasNode, type StoredNode } from '@exprything/schema';
+import {
+  widgetCatalog, type Canvas, type CanvasDrawing, type CanvasNode, type NodeStyle, type StoredNode,
+} from '@exprything/schema';
 import { paths, readJson, writeJsonAtomic } from './paths.ts';
 
 const GAP = 24;
@@ -54,7 +56,10 @@ export class CanvasStore {
     writeJsonAtomic(join(paths.canvases, `${c.id}.json`), c);
   }
 
-  /** Upsert keeps the user's layout decisions: pinned nodes never move or resize from agent updates. */
+  /**
+   * Upsert keeps a person's decisions: pinned nodes never move or resize from agent updates, and
+   * style fields a person changed keep the person's value.
+   */
   upsertNode(c: Canvas, node: CanvasNode): StoredNode {
     const idx = c.nodes.findIndex((n) => n.id === node.id);
     const prev = idx >= 0 ? c.nodes[idx] : undefined;
@@ -76,7 +81,19 @@ export class CanvasStore {
       ({ x, y } = place(others, w, h, l.near ? others.find((n) => n.id === l.near) : undefined, l.side));
     }
 
-    const stored: StoredNode = { ...node, x, y, w, h, pinned: prev?.pinned ?? false };
+    const stylePins = prev?.stylePins ?? [];
+    const style: NodeStyle = { ...node.style };
+    for (const key of stylePins) {
+      if (prev?.style && key in prev.style) Object.assign(style, { [key]: prev.style[key] });
+    }
+
+    const stored: StoredNode = {
+      ...node,
+      style: Object.keys(style).length ? style : undefined,
+      x, y, w, h,
+      pinned: prev?.pinned ?? false,
+      stylePins: stylePins.length ? stylePins : undefined,
+    };
     if (idx >= 0) c.nodes[idx] = stored;
     else c.nodes.push(stored);
     return stored;
@@ -91,6 +108,15 @@ export class CanvasStore {
     const n = c.nodes.find((n) => n.id === id);
     if (!n) throw new Error(`unknown node: ${id}`);
     Object.assign(n, rect, { pinned: true });
+    return n;
+  }
+
+  /** A human restyled a node's frame on the canvas: keep those fields over later agent updates. */
+  restyleNode(c: Canvas, id: string, style: Partial<NodeStyle>): StoredNode {
+    const n = c.nodes.find((n) => n.id === id);
+    if (!n) throw new Error(`unknown node: ${id}`);
+    n.style = { ...n.style, ...style };
+    n.stylePins = [...new Set([...(n.stylePins ?? []), ...(Object.keys(style) as (keyof NodeStyle)[])])];
     return n;
   }
 }

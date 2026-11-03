@@ -8,7 +8,9 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { z } from 'zod';
-import { ApplyRequest, CanvasDrawing, Id, authoringGuide, widgetCatalog } from '@exprything/schema';
+import {
+  ApplyRequest, CanvasDrawing, Id, NodeStyle, authoringGuide, stylePalette, widgetCatalog, type StoredNode,
+} from '@exprything/schema';
 import { Engine } from './engine.ts';
 import { DEFAULT_PORT, paths, readOrCreateToken } from './paths.ts';
 
@@ -69,11 +71,22 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   app.patch('/api/canvases/:id/nodes/:node', async (c) => {
     const canvas = engine.canvases.get(c.req.param('id'));
     if (!canvas) throw new HTTPException(404, { message: 'no such canvas' });
-    const rect = parse(z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }).partial(), await c.req.json());
-    const node = engine.canvases.moveNode(canvas, c.req.param('node'), rect);
+    const { style, ...rect } = parse(
+      z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number(), style: NodeStyle.partial() }).partial(),
+      await c.req.json(),
+    );
+    const id = c.req.param('node');
+    let node: StoredNode | undefined;
+    try {
+      // A person's edit on the canvas: geometry pins the node, style pins the changed fields.
+      if (Object.keys(rect).length) node = engine.canvases.moveNode(canvas, id, rect);
+      if (style) node = engine.canvases.restyleNode(canvas, id, style);
+    } catch (e) {
+      throw new HTTPException(404, { message: (e as Error).message });
+    }
     engine.canvases.save(canvas);
     engine.touch(canvas.id);
-    return c.json(node);
+    return c.json(node ?? null);
   });
 
   app.get('/api/canvases/:id/drawing', (c) => c.json(engine.canvases.getDrawing(parse(Id, c.req.param('id')))));
@@ -171,6 +184,7 @@ export function catalogJson() {
         { description: doc.description, data: doc.data, defaultSize: doc.defaultSize, props: z.toJSONSchema(doc.props), example: doc.example },
       ]),
     ),
+    style: { schema: z.toJSONSchema(NodeStyle), palette: stylePalette },
     sources: z.toJSONSchema(ApplyRequest, { io: 'input', unrepresentable: 'any' }),
   };
 }
