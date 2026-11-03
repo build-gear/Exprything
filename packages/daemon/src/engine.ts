@@ -29,6 +29,11 @@ export class Engine {
     this.sources.stop();
   }
 
+  /** Tell connected UIs a canvas changed outside apply, e.g. a person moved a node. */
+  touch(canvasId: string): void {
+    this.notify({ canvas: canvasId });
+  }
+
   apply(req: ApplyRequest): ApplyResult {
     this.checkReferences(req);
     const canvas = this.canvases.ensure(req.canvas, req.title);

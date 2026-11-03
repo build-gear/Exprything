@@ -1,6 +1,6 @@
 import { readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { widgetCatalog, type Canvas, type CanvasNode, type StoredNode } from '@exprything/schema';
+import { widgetCatalog, type Canvas, type CanvasDrawing, type CanvasNode, type StoredNode } from '@exprything/schema';
 import { paths, readJson, writeJsonAtomic } from './paths.ts';
 
 const GAP = 24;
@@ -37,6 +37,16 @@ export class CanvasStore {
   delete(id: string): void {
     this.canvases.delete(id);
     rmSync(join(paths.canvases, `${id}.json`), { force: true });
+    rmSync(join(paths.drawings, `${id}.json`), { force: true });
+  }
+
+  /** Kept in its own file: it can hold image data and is not needed for every view refresh. */
+  getDrawing(id: string): CanvasDrawing {
+    return readJson<CanvasDrawing>(join(paths.drawings, `${id}.json`), { elements: [], files: {} });
+  }
+
+  saveDrawing(id: string, drawing: CanvasDrawing): void {
+    writeJsonAtomic(join(paths.drawings, `${id}.json`), drawing);
   }
 
   save(c: Canvas): void {

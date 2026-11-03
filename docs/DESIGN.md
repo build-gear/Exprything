@@ -369,3 +369,4 @@ exprything/
 | 레이아웃 | `near`/`side` 또는 자동 배치. 사용자가 옮기거나 크기를 바꾼 노드는 pinned |
 | 차트 (결정 2, 잠정) | ECharts option + `dataset.source` 주입 |
 | 패키지 | `widgets/` 폴더 없이 카탈로그는 `schema`, 렌더러는 `ui`에 둠. MCP 서버는 `exp mcp`로 CLI에 포함 |
+| 캔버스 (결정 3, 스파이크) | Excalidraw 0.18.1. 위젯은 `embeddable` 요소로 투영, 사람의 드로잉은 `~/.exprything/drawings/`에 저장. React Flow는 헤더 전환으로 남김. 근거와 결과는 [research/excalidraw.md](research/excalidraw.md) 10장 |

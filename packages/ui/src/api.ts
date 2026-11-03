@@ -1,4 +1,4 @@
-import type { CanvasView } from '@exprything/schema';
+import type { CanvasDrawing, CanvasView } from '@exprything/schema';
 
 const TOKEN_KEY = 'exprything.token';
 
@@ -32,6 +32,15 @@ export class Api {
     return this.call('PATCH', `/api/canvases/${encodeURIComponent(canvas)}/nodes/${encodeURIComponent(node)}`, rect);
   }
 
+  drawing(canvas: string): Promise<CanvasDrawing> {
+    return this.call('GET', `/api/canvases/${encodeURIComponent(canvas)}/drawing`);
+  }
+
+  /** `keepalive` lets the save finish while the page is being closed. */
+  saveDrawing(canvas: string, drawing: CanvasDrawing, keepalive = false) {
+    return this.call('PUT', `/api/canvases/${encodeURIComponent(canvas)}/drawing`, drawing, keepalive);
+  }
+
   sources(): Promise<{ id: string; kind: string; cmd?: string[]; cwd?: string }[]> {
     return this.call('GET', '/api/sources');
   }
@@ -56,12 +65,19 @@ export class Api {
       ws.onclose = () => { if (!closed) retry = window.setTimeout(open, 2_000); };
     };
     open();
-    return () => { closed = true; clearTimeout(retry); ws?.close(); };
+    return () => {
+      closed = true;
+      clearTimeout(retry);
+      // Closing a socket that is still connecting logs a browser warning (StrictMode remounts do this).
+      if (ws?.readyState === WebSocket.CONNECTING) ws.onopen = () => ws?.close();
+      else ws?.close();
+    };
   }
 
-  private async call<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async call<T>(method: string, path: string, body?: unknown, keepalive = false): Promise<T> {
     const res = await fetch(path, {
       method,
+      keepalive,
       headers: { authorization: `Bearer ${this.token}`, ...(body !== undefined && { 'content-type': 'application/json' }) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });

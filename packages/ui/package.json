@@ -3,8 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build" },
+  "scripts": {
+    "dev": "node scripts/copy-excalidraw-fonts.mjs && vite",
+    "build": "node scripts/copy-excalidraw-fonts.mjs && vite build"
+  },
   "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
     "@exprything/schema": "workspace:*",
     "@xyflow/react": "^12.12.1",
     "dompurify": "^3.4.17",

@@ -180,3 +180,15 @@ export interface CanvasView {
 }
 
 export type ServerMessage = { type: 'changed'; canvas?: string; source?: string };
+
+// ---------- drawing (human-drawn Excalidraw layer, spike) ----------
+
+/**
+ * Freehand drawings, shapes and text people add on the canvas. Stored as opaque Excalidraw
+ * elements next to the canvas; widget nodes are never part of it.
+ */
+export const CanvasDrawing = z.object({
+  elements: z.array(z.record(z.string(), z.unknown())).max(20_000),
+  files: z.record(z.string(), z.unknown()).default({}),
+});
+export type CanvasDrawing = z.infer<typeof CanvasDrawing>;

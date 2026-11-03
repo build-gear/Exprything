@@ -13,7 +13,7 @@ export function Markdown({ data, props }: Props) {
 
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-function useDark(): boolean {
+export function useDark(): boolean {
   const [dark, setDark] = useState(darkQuery.matches);
   useEffect(() => {
     const on = () => setDark(darkQuery.matches);

@@ -1,9 +1,9 @@
-import '@xyflow/react/dist/style.css';
-import './styles.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Api, initToken } from './api.ts';
 import { App } from './App.tsx';
+// After the canvas libraries' own CSS, so our overrides win.
+import './styles.css';
 
 const token = initToken();
 const root = createRoot(document.getElementById('root')!);

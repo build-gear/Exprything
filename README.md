@@ -63,6 +63,12 @@ pnpm exp open repo-pulse
 
 State lives in `~/.exprything` (override with `EXPRYTHING_HOME`); the daemon listens on `127.0.0.1:7717` (`EXPRYTHING_PORT`).
 
+## Canvas
+
+The canvas is [Excalidraw](https://github.com/excalidraw/excalidraw): people can draw shapes, text and arrows around the live widgets, and drawings are saved to `~/.exprything/drawings/`.
+Widgets stay owned by agent recipes: moving or resizing one pins it, deleting one is undone.
+The previous React Flow canvas is still available from the switch in the header while the Excalidraw renderer is a spike (see [docs/research/excalidraw.md](docs/research/excalidraw.md), section 10.5).
+
 ## Layout
 
 ```
@@ -72,7 +78,7 @@ packages/
   client/   HTTP client for the daemon
   mcp/      MCP tools over the client
   cli/      `exp` command (also hosts `exp mcp`)
-  ui/       React Flow canvas + widgets (ECharts, tables, stats, logs, markdown)
+  ui/       Excalidraw canvas (React Flow fallback) + widgets (ECharts, tables, stats, logs, markdown)
 examples/   sample recipes
 ```
 

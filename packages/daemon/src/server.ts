@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { z } from 'zod';
-import { ApplyRequest, authoringGuide, widgetCatalog } from '@exprything/schema';
+import { ApplyRequest, CanvasDrawing, Id, authoringGuide, widgetCatalog } from '@exprything/schema';
 import { Engine } from './engine.ts';
 import { DEFAULT_PORT, paths, readOrCreateToken } from './paths.ts';
 
@@ -72,7 +72,19 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     const rect = parse(z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }).partial(), await c.req.json());
     const node = engine.canvases.moveNode(canvas, c.req.param('node'), rect);
     engine.canvases.save(canvas);
+    engine.touch(canvas.id);
     return c.json(node);
+  });
+
+  app.get('/api/canvases/:id/drawing', (c) => c.json(engine.canvases.getDrawing(parse(Id, c.req.param('id')))));
+
+  app.put('/api/canvases/:id/drawing', async (c) => {
+    const id = parse(Id, c.req.param('id'));
+    const drawing = parse(CanvasDrawing, await c.req.json());
+    // Drawing on a canvas no agent has touched yet creates it.
+    if (!engine.canvases.get(id)) engine.canvases.save(engine.canvases.ensure(id));
+    engine.canvases.saveDrawing(id, drawing);
+    return c.json({ ok: true, elements: drawing.elements.length });
   });
 
   app.get('/api/sources', (c) =>
