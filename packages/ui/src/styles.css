@@ -11,7 +11,12 @@
   --bad: #d14b3f;
   --warn-bg: #fdf4e1;
   --bad-bg: #fdeceb;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.04);
+  /* How Excalidraw's canvas looks: white, or white through its dark filter. */
+  --canvas: #ffffff;
+  /* Excalidraw's own button surface, so controls we place on the canvas match its UI. */
+  --island: #ececf4;
+  --island-ring: #ffffff;
+  --island-text: #1b1b1f;
   color-scheme: light;
 }
 
@@ -29,7 +34,10 @@
     --bad: #ef6f63;
     --warn-bg: #2e2617;
     --bad-bg: #2f1a18;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    --canvas: #121212;
+    --island: hsl(240 8% 15%);
+    --island-ring: hsl(0 0% 7%);
+    --island-text: #e3e3e8;
     color-scheme: dark;
   }
 }
@@ -43,44 +51,56 @@ body {
 }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
 
-.app { display: flex; flex-direction: column; height: 100%; }
-.bar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--card);
+/* The canvas fills the window; our controls float on it like Excalidraw's own. */
+.stage { height: 100%; position: relative; display: flex; flex-direction: column; }
+
+/* Source health, in Excalidraw's top-right slot (where its library button was). */
+.summary {
+  display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px;
+  border-radius: 8px; background: var(--island); box-shadow: 0 0 0 1px var(--island-ring);
+  font: 500 12px/1 Assistant, ui-sans-serif, system-ui, sans-serif; color: var(--island-text); white-space: nowrap;
 }
-.brand { font-weight: 650; letter-spacing: -0.01em; }
-.bar select {
-  background: var(--bg); color: var(--text); border: 1px solid var(--border);
-  border-radius: 6px; padding: 3px 6px; font: inherit;
-}
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.seg button {
-  font: inherit; font-size: 12px; padding: 3px 10px; border: 0; cursor: pointer;
-  background: var(--bg); color: var(--muted);
-}
-.seg button + button { border-left: 1px solid var(--border); }
-.seg button.on { background: var(--card); color: var(--text); font-weight: 600; }
-.summary { margin-left: auto; color: var(--muted); display: flex; gap: 8px; align-items: center; }
-.pill { padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+.pill { padding: 3px 8px; border-radius: 999px; font-size: 12px; }
 .pill.warn { background: var(--warn-bg); color: var(--warn); }
 .pill.bad { background: var(--bad-bg); color: var(--bad); }
 
 .empty { margin: auto; padding: 16px; color: var(--muted); text-align: center; max-width: 480px; }
 
-.react-flow { --xy-background-pattern-color: var(--grid); background: var(--bg); }
-.react-flow__controls button { background: var(--card); color: var(--text); border-color: var(--border); }
-.react-flow__node-widget { padding: 0; }
+/* The canvas switcher sits where Excalidraw's main menu button was. */
+.canvas-picker { position: absolute; top: 16px; left: 16px; z-index: 5; }
+.canvas-picker select {
+  appearance: none; height: 36px; max-width: 240px; padding: 0 30px 0 12px;
+  border: 0; border-radius: 8px; cursor: pointer;
+  font: 600 13px/1 Assistant, ui-sans-serif, system-ui, sans-serif; color: var(--island-text);
+  background: var(--island); box-shadow: 0 0 0 1px var(--island-ring);
+  text-overflow: ellipsis;
+}
+/* In Excalidraw's narrow layout its toolbar starts in the top-left corner, so the switcher moves to
+   the empty right end of the bottom bar (14px inset, 48px tall). */
+.stage:has(.excalidraw--mobile) > .canvas-picker { top: auto; left: auto; right: 20px; bottom: 20px; }
+.canvas-picker::after {
+  content: ''; position: absolute; right: 13px; top: 50%; width: 6px; height: 6px; margin-top: -5px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  color: var(--muted); transform: rotate(45deg); pointer-events: none;
+}
 
+/* Widgets draw no lines or backgrounds of their own: a styled frame is drawn by Excalidraw, and the
+   widget under the pointer shows a preview of Excalidraw's selection border (.hover-outline). */
 .wn {
   width: 100%; height: 100%;
   display: flex; flex-direction: column;
-  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-  box-shadow: var(--shadow); overflow: hidden;
+  background: transparent; border-radius: 10px;
+  overflow: hidden;
+  font-family: var(--w-font, inherit);
 }
 .wn.st-stale .wn-body, .wn.st-error .wn-body { opacity: 0.55; }
-.wn-head {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; border-bottom: 1px solid var(--border); cursor: grab; min-height: 32px;
+.wn-head { display: flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: 32px; }
+.wn-ink { color: var(--w-ink); }
+/* Excalidraw shows its canvas in dark mode through this filter, and applies it to every <canvas>
+   inside it, ECharts' included. HTML and SVG drawn in its light palette (ink, hand-drawn charts)
+   take the same filter here, so they match the shapes around them. */
+@media (prefers-color-scheme: dark) {
+  .wn-ink, .sketch-chart, .hover-outline { filter: invert(93%) hue-rotate(180deg); }
 }
 .wn-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wn-pin { color: var(--muted); font-size: 8px; }
@@ -104,25 +124,48 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .wn-body { flex: 1; min-height: 0; overflow: auto; cursor: default; }
 
-/* Excalidraw renderer. Embeds ignore the pointer by default so a click on the card selects and
-   drags the element on the canvas; only the parts people interact with take pointer events. */
+/* Excalidraw renderer. Embeds let the pointer through, so wheel pans the canvas and a click selects
+   or drags the widget. A selected widget's body takes the pointer (scroll, sort, tooltips); its
+   buttons always do. Excalidraw's own click-to-activate would hand the whole card the pointer,
+   header included, so it is switched off. */
 .draw-host { flex: 1; min-height: 0; position: relative; }
+/* Excalidraw's selection border, previewed at 20% on the widget under the pointer; DrawCanvas places it
+   and reads the color from Excalidraw's --color-selection (filtered in dark mode like its canvas). */
+.hover-outline {
+  display: none; position: absolute; z-index: 3; box-sizing: border-box;
+  border: 1px solid; opacity: 0.2; pointer-events: none; transform-origin: center;
+}
+.draw-host .excalidraw__embeddable-container__inner { pointer-events: none !important; }
+.draw-host .excalidraw__embeddable-hint { display: none; }
+/* No main menu: its button stays invisible but keeps its slot, which the canvas switcher covers and
+   below which Excalidraw lays out its style panel. No shape library either; its empty label
+   element would otherwise still take a flex gap in the top-right slot. */
+.draw-host .main-menu-trigger { visibility: hidden; }
+.draw-host .default-sidebar-trigger,
+.draw-host .sidebar-trigger__label-element { display: none; }
+/* A selected widget's link is internal, so its link editor stays hidden. Its style panel stays:
+   restyling the frame there updates the widget's style. */
+.draw-host.widget-selected .excalidraw-hyperlinkContainer { display: none; }
 .wn-embed { width: 100%; height: 100%; }
-.wn-embed .wn-body, .wn-embed .wn-fresh, .wn-embed .wn-banner button { pointer-events: auto; }
+.wn-embed .wn.is-active .wn-body, .wn-embed .wn-fresh, .wn-embed .wn-banner button { pointer-events: auto; }
 
 .w-markdown { padding: 4px 12px; }
 .w-markdown :first-child { margin-top: 6px; }
 .w-chart { width: 100%; height: 100%; }
-.w-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.w-table th, .w-table td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.w-table th { position: sticky; top: 0; background: var(--card); cursor: pointer; color: var(--muted); font-weight: 600; }
-.w-stat { padding: 10px 14px; height: 100%; display: flex; flex-direction: column; }
+/* Separate borders and a z-index keep the sticky header painted over scrolled rows. */
+.w-table table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.w-table th, .w-table td {
+  text-align: left; padding: 5px 10px; white-space: nowrap;
+  border-bottom: 1px solid var(--border); border-bottom-style: var(--w-line, solid);
+}
+.w-table th { position: sticky; top: 0; z-index: 1; background: var(--canvas); cursor: pointer; color: var(--muted); font-weight: 600; }.w-stat { padding: 10px 14px; height: 100%; display: flex; flex-direction: column; }
 .w-stat-value { font-size: 32px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .w-stat-unit { font-size: 13px; color: var(--muted); margin-left: 6px; font-weight: 500; }
 .w-stat-delta.up { color: var(--ok); }
 .w-stat-delta.down { color: var(--bad); }
 .w-spark { flex: 1; width: 100%; min-height: 20px; margin-top: 6px; }
-.w-spark polyline { stroke: var(--accent); stroke-width: 1.5; }
+.w-spark polyline { stroke: var(--w-ink, var(--accent)); stroke-width: 1.5; }
+.sketch-chart { display: block; overflow: visible; }
 .w-log {
   margin: 0; padding: 8px 10px; height: 100%; overflow: auto;
   font: 11.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all;

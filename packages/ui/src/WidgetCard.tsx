@@ -1,13 +1,21 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, type CSSProperties } from 'react';
 import type { NodeView, SourceState } from '@exprything/schema';
 import { CanvasCtx } from './context.ts';
+import { fontStack, inkOf, type Look } from './style.ts';
 import { widgets } from './widgets/index.tsx';
 
-/** The card every live widget is drawn in, whichever canvas renders it. */
-export function WidgetCard({ view: n }: { view: NodeView }) {
+/**
+ * The card every live widget is drawn in. It draws no lines of its own: a frame comes from its style
+ * and is drawn by Excalidraw. Only a selected (`active`) card takes wheel and pointer input inside
+ * its body.
+ */
+export function WidgetCard({ view: n, look, active = false }: { view: NodeView; look: Look; active?: boolean }) {
   const { api, reload } = useContext(CanvasCtx);
   const Widget = widgets[n.type];
   const st = n.sourceState;
+  const ink = inkOf(look);
+  const className = ['wn', st && `st-${st.status}`, active && 'is-active'].filter(Boolean).join(' ');
+  const vars = { '--w-font': fontStack(look), '--w-ink': ink, '--w-line': look.strokeStyle } as CSSProperties;
 
   const approve = async () => {
     const src = (await api.sources()).find((s) => s.id === n.source);
@@ -19,9 +27,9 @@ export function WidgetCard({ view: n }: { view: NodeView }) {
   };
 
   return (
-    <div className={`wn ${st ? `st-${st.status}` : ''}`}>
+    <div className={className} style={vars}>
       <div className="wn-head">
-        <span className="wn-title">{n.title ?? n.id}</span>
+        <span className={ink ? 'wn-title wn-ink' : 'wn-title'}>{n.title ?? n.id}</span>
         {n.pinned && <span className="wn-pin" title="Moved by you; agents will not move it">●</span>}
         {st && <Freshness state={st} onRefresh={() => api.refresh(st.id).then(reload, reload)} />}
       </div>
@@ -31,8 +39,8 @@ export function WidgetCard({ view: n }: { view: NodeView }) {
         </div>
       )}
       {(n.error || st?.lastError) && <div className="wn-banner bad" title={n.error ?? st?.lastError}>{n.error ?? st?.lastError}</div>}
-      <div className="wn-body nodrag nowheel">
-        {Widget ? <Widget data={n.data} props={n.props} /> : <div>Unknown widget: {n.type}</div>}
+      <div className="wn-body">
+        {Widget ? <Widget data={n.data} props={n.props} look={look} seedKey={n.id} /> : <div>Unknown widget: {n.type}</div>}
       </div>
     </div>
   );

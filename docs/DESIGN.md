@@ -285,7 +285,7 @@ CLI와 MCP는 **동일한 op 스키마**를 공유 → 에이전트가 MCP를 �
 | 런타임 | Node 22+ (또는 Bun) | MCP TS SDK 성숙 |
 | 데몬 API | Hono + ws | 가볍고 타입 친화적 |
 | 스키마 | Zod → JSON Schema 자동 생성 | 한 곳에서 정의, MCP 툴 스키마/catalog/검증에 재사용 |
-| 캔버스 | **React Flow (xyflow, MIT)** | tldraw는 상용 라이선스/워터마크 이슈. 노드 중심엔 React Flow가 적합 |
+| 캔버스 | **Excalidraw (MIT)**, 위젯은 `embeddable` 요소 | 처음엔 React Flow였으나 기본 드로잉 기능 때문에 교체([research/excalidraw.md](research/excalidraw.md)). tldraw는 production 라이선스 키 필요 |
 | 차트 | **ECharts** (실시간·대용량 강함, option JSON) | Vega-Lite (문법적, 선언성 최고). → 결정 필요 |
 | 변환식 | JSONata | JMESPath(단순), jq(익숙하지만 브라우저 바인딩 무거움) |
 | 저장 | `.exprything/` 폴더: `canvas/*.json`(스냅샷, git 친화) + SQLite(이벤트 로그) | 프로젝트별 캔버스를 레포에 커밋 가능 |
@@ -333,7 +333,7 @@ exprything/
 │  ├─ mcp/         # exp-mcp: stdio MCP 서버 (daemon 클라이언트)
 │  ├─ cli/         # exp CLI (daemon 클라이언트 + hooks 어댑터)
 │  ├─ client/      # daemon용 TS SDK (mcp/cli/외부 스크립트가 공유)
-│  └─ ui/          # React + React Flow 캔버스, 위젯 렌더러
+│  └─ ui/          # React + Excalidraw 캔버스, 위젯 렌더러
 ├─ widgets/        # 위젯별 렌더러 + 스키마 + 예시 (catalog의 원천)
 ├─ examples/       # 데모 캔버스 JSON
 └─ docs/
@@ -369,4 +369,5 @@ exprything/
 | 레이아웃 | `near`/`side` 또는 자동 배치. 사용자가 옮기거나 크기를 바꾼 노드는 pinned |
 | 차트 (결정 2, 잠정) | ECharts option + `dataset.source` 주입 |
 | 패키지 | `widgets/` 폴더 없이 카탈로그는 `schema`, 렌더러는 `ui`에 둠. MCP 서버는 `exp mcp`로 CLI에 포함 |
-| 캔버스 (결정 3, 스파이크) | Excalidraw 0.18.1. 위젯은 `embeddable` 요소로 투영, 사람의 드로잉은 `~/.exprything/drawings/`에 저장. React Flow는 헤더 전환으로 남김. 근거와 결과는 [research/excalidraw.md](research/excalidraw.md) 10장 |
+| 위젯 스타일 | Excalidraw 요소 속성과 같은 이름의 `style`(노드별, 캔버스 기본값). 테두리는 Excalidraw가 그리고, 글꼴·잉크 색은 HTML에, `roughness > 0`이면 막대·선 차트를 rough.js로 그린다. 사람이 스타일 패널로 바꾼 필드는 `stylePins`로 고정. [research/excalidraw.md](research/excalidraw.md) 10.6 |
+| 캔버스 (결정 3, 스파이크) | Excalidraw 0.18.1. 위젯은 `embeddable` 요소로 투영, 사람의 드로잉은 `~/.exprything/drawings/`에 저장. React Flow는 제거. 근거와 결과는 [research/excalidraw.md](research/excalidraw.md) 10장 |

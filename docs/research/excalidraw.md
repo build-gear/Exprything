@@ -452,7 +452,7 @@ flowchart LR
 
 ### 10.5 스파이크 결과 (2026-11-03)
 
-**구현한 것**: `packages/ui`에 Excalidraw 렌더러를 React Flow 옆에 추가했다(헤더에서 전환, 기본값 Excalidraw).
+**구현한 것**: `packages/ui`에 Excalidraw 렌더러를 React Flow 옆에 추가했다(헤더에서 전환, 기본값 Excalidraw). 이후 React Flow 뷰와 Excalidraw의 메인 메뉴·라이브러리 버튼을 없애고, 캔버스 전환 드롭다운을 메인 메뉴 자리(왼쪽 위)로 옮겼다. 상단 바도 없애서 캔버스가 창 전체를 쓰고, 소스 상태는 `renderTopRightUI`로 오른쪽 위(라이브러리 버튼 자리)에 둔다. Excalidraw가 좁은 화면 레이아웃(약 730px 미만)으로 바뀌면 툴바가 왼쪽 위부터 시작하므로, 전환 드롭다운은 아래 바의 빈 오른쪽 끝으로 옮긴다.
 - [DrawCanvas.tsx](../../packages/ui/src/DrawCanvas.tsx): 노드를 `embeddable` 요소(id `node:<id>`, link `exprything:node/<id>`, `customData.exprything.node`)로 투영하고, `renderEmbeddable`로 기존 위젯 카드([WidgetCard.tsx](../../packages/ui/src/WidgetCard.tsx))를 그린다. 위젯 기하의 진실은 계속 데몬이다.
 - 데몬: 사람의 드로잉을 `~/.exprything/drawings/<canvas>.json`에 통째로 저장한다(`GET/PUT /api/canvases/:id/drawing`). 노드 이동 PATCH는 다른 탭에도 알린다.
 - 폰트: 빌드 때 `dist/prod/fonts`를 `public/fonts`로 복사하고 `window.EXCALIDRAW_ASSET_PATH = '/'`로 둔다.
@@ -465,7 +465,7 @@ flowchart LR
 | 실시간 갱신 | `exp push`로 넣은 로그 3줄이 새로고침 없이 위젯에 나타남 |
 | 드로잉 | 사각형·한글 텍스트(손글씨 폰트)·화살표를 그리고, 새로고침 후에도 남아 있음 |
 | 폰트 오프라인 | Excalifont와 Xiaolai(한글 subset) 모두 `127.0.0.1:7717/fonts/`에서 로드. CDN 요청 0 |
-| 위젯 조작 | 제목줄은 캔버스로 통과(선택·드래그). `pointer-events: auto`를 준 본문과 신선도 버튼은 활성화 클릭 없이 동작 |
+| 위젯 조작 | 위젯은 기본적으로 포인터를 캔버스로 통과시킨다: 휠은 캔버스 이동, 클릭은 선택·드래그. 위젯 하나만 선택된 동안에만 본문이 휠·클릭을 받는다(스크롤·정렬·툴팁). 신선도·승인 버튼은 항상 동작. Excalidraw 자체의 '가운데 클릭 활성화'는 CSS로 끄고, 위젯을 선택했을 때는 스타일 패널과 링크 팝오버를 숨긴다. 위젯은 자기 선과 배경을 그리지 않는다(테두리·제목 구분선·호버 배경 없음). 호버 중에는 Excalidraw 선택 테두리(요소 바깥 4px, 1px, `--color-selection`)를 같은 자리에 20% 불투명도로 미리 그린다. 선택하면 Excalidraw가 진짜 테두리를 그리므로 미리보기는 숨긴다(호버는 `onPointerUpdate` 좌표로 판정. 통과하는 요소에는 CSS `:hover`가 걸리지 않기 때문) |
 | 사람 이동 → pin | 제목줄 드래그 → PATCH → `pinned: true` |
 | 에이전트 이동 | 고정 안 된 노드를 `exp apply`로 옮기면 위젯이 이동. **바인딩된 화살표는 따라오지 않았다**(Excalidraw는 자체 드래그·리사이즈 때만 화살표를 다시 잇는다). 투영 단계에서 화살표 끝점을 위젯 이동량만큼 옮기도록 보완했고(`followMovedWidgets`), 이후 화살표가 붙은 채 이동함을 확인 |
 | 화살표 → 위젯 바인딩 | 에디터에서 위젯에 화살표를 붙일 수 있다(포인터 이동을 거친 실제 드래그 기준). 위젯 요소는 저장하지 않으므로 다시 열면 위젯 쪽 `boundElements`가 비어 있었다. 로드할 때 드로잉의 화살표로부터 복원하도록 보완(`withArrowBindings`) |
@@ -473,7 +473,7 @@ flowchart LR
 | 다크 모드 | Excalidraw 캔버스(필터 반전)와 위젯(자체 다크 테마)이 맞는다. 둘 다 `prefers-color-scheme`을 따른다 |
 | StrictMode | React 에러 없음. 이중 마운트 때 나던 WebSocket 경고는 연결 중인 소켓을 정리하는 방식을 바꿔 없앴다 |
 | 성능 | 위젯 37개(ECharts 36) 마운트 상태에서 팬 1스텝의 JS·React 비용 평균 1.18 ms, p95 2.8 ms. 브라우저 패널이 숨겨진 상태라 페인트·합성 비용은 재지 못했다 |
-| 번들 | 메인 chunk 2.7 MB(min) / 878 KB(gz). ECharts·React Flow·Excalidraw 합계. lazy chunk(mermaid 등)와 폰트 13 MB는 별도 |
+| 번들 | 메인 chunk 2.7 MB(min) / 878 KB(gz). ECharts·React Flow·Excalidraw 합계. React Flow를 뺀 뒤 2.5 MB / 819 KB. lazy chunk(mermaid 등)와 폰트 13 MB는 별도 |
 
 **남은 문제**
 1. **z-order**: 화살표가 위젯 밑으로 지나가는 것을 실제 화면에서 확인했다(4.2, 9.4).
@@ -484,6 +484,25 @@ flowchart LR
 6. **에이전트 쪽**: `drawing.upsert`/`drawing.delete`와 `canvas_read`의 드로잉 요약은 아직 없다(10.4의 3단계).
 
 **판단**: (A)의 핵심 가정(라이브 위젯 공존, 사람 우선 pin, 오프라인 폰트, 한국어)이 실제 앱에서 성립했다. 다음은 10.4의 2·3단계, 즉 드로잉 병합과 에이전트용 drawing op다.
+
+### 10.6 위젯 스타일: HTML 위젯을 Excalidraw 도형처럼 (2026-11-03)
+
+**구현**: 노드와 캔버스에 Excalidraw 요소 속성과 같은 이름의 `style`을 둔다(`strokeColor`, `backgroundColor`, `fillStyle`, `strokeWidth`, `strokeStyle`, `roughness`, `roundness`, `opacity`, 그리고 `fontFamily`: hand·normal·code). 값은 zod로 검증하고 `catalog_get`이 Excalidraw 기본 팔레트를 함께 준다.
+
+| 층 | 방법 | 확인 |
+|---|---|---|
+| 테두리·채우기 | 위젯의 embeddable 요소에 위 속성을 그대로 준다. Excalidraw가 투명한 위젯 카드 아래에 자기 도형처럼 그린다 | 거친 선·hachure·cross-hatch·점선·둥근 모서리 모두 그려짐. 내보내기에도 테두리는 나온다 |
+| 글꼴 | Excalidraw가 `document.fonts`에 등록해 두는 Excalifont·Xiaolai·Nunito·Comic Shanns를 CSS `font-family`로 쓴다 | 한글은 Xiaolai subset만 필요할 때 로컬에서 받는다 |
+| 잉크 색 | `strokeColor`를 제목·숫자·첫 차트 계열 색으로 쓴다 | |
+| 깔끔한 차트 | ECharts에 팔레트(`color`)와 글꼴(`textStyle`)을 넣는다. canvas 글자는 웹폰트가 늦게 와도 다시 그려지지 않으므로 `document.fonts.load`를 먼저 기다린다 | |
+| 손그림 차트 | `roughness > 0`이고 옵션이 category x축 + bar·line 계열(`encode`)이면 rough.js(Excalidraw와 같은 4.6.4)로 SVG를 그린다. 선 옵션은 Excalidraw의 `generateRoughOptions`를 그대로 옮겼고, seed는 노드 id에서 만들어 다시 그려도 모양이 같다. 그 밖의 옵션은 ECharts로 넘어간다 | 막대(hachure)·선·점·범례·점선 격자 |
+| 사람 편집 | 위젯을 선택하면 Excalidraw 스타일 패널이 그대로 뜬다. 바뀐 필드는 PATCH로 노드 `style`에 들어가고 `stylePins`에 기록되어, 에이전트가 다시 apply해도 그 필드는 사람 값으로 남는다 | 사람이 빨강으로 바꾼 선 색은 유지되고, 에이전트가 바꾼 배경색은 반영됨 |
+
+**다크 모드에서 발견한 것**: Excalidraw는 `.excalidraw.theme--dark canvas { filter: var(--theme-filter) }`로 자기 안의 **모든 `<canvas>`**에 필터를 건다. 위젯 안의 ECharts canvas도 포함된다. 그래서 스파이크 때처럼 ECharts를 dark 테마로 그리면 두 번 반전된다. 이제 ECharts는 항상 light 테마로 그리고 반전은 Excalidraw에 맡긴다. 필터가 닿지 않는 HTML 잉크와 SVG 손그림 차트에만 같은 필터(`invert(93%) hue-rotate(180deg)`)를 우리가 건다. 결과적으로 위젯 색이 주변 도형과 똑같이 바뀐다.
+
+**함께 고친 것**: 메인 메뉴 버튼을 `display: none`으로 숨기면 Excalidraw 스타일 패널이 그 자리까지 올라와 캔버스 전환 드롭다운 밑으로 들어간다. `visibility: hidden`으로 자리를 남겨 패널이 드롭다운 아래에서 시작하게 했다.
+
+**남은 것**: 손그림 차트는 bar·line만 그린다(pie·scatter·time 축은 ECharts). 표와 차트 밑에 hachure를 깔면 읽기 어렵다. 위젯 내용은 여전히 export에서 자리표시자로 나온다.
 
 ---
 

@@ -67,7 +67,24 @@ State lives in `~/.exprything` (override with `EXPRYTHING_HOME`); the daemon lis
 
 The canvas is [Excalidraw](https://github.com/excalidraw/excalidraw): people can draw shapes, text and arrows around the live widgets, and drawings are saved to `~/.exprything/drawings/`.
 Widgets stay owned by agent recipes: moving or resizing one pins it, deleting one is undone.
-The previous React Flow canvas is still available from the switch in the header while the Excalidraw renderer is a spike (see [docs/research/excalidraw.md](docs/research/excalidraw.md), section 10.5).
+Switch canvases from the menu in the top-left corner; the top-right corner shows the canvas's sources and any that await approval or repair.
+The Excalidraw renderer is still a spike (see [docs/research/excalidraw.md](docs/research/excalidraw.md), section 10.5).
+
+### Style
+
+Widgets can look like Excalidraw shapes. `style` uses Excalidraw's element properties, on a node or as the canvas default in the apply request:
+
+```jsonc
+{ "canvas": "repo-pulse",
+  "style": { "roughness": 1, "fontFamily": "hand" },
+  "ops": [{ "op": "node.upsert", "node": { "id": "todos", "type": "stat", "source": "todo-count",
+    "style": { "strokeColor": "#1971c2", "backgroundColor": "#a5d8ff", "fillStyle": "hachure" } } }] }
+```
+
+- Excalidraw draws the frame (`strokeColor`, `backgroundColor`, `fillStyle`, `strokeWidth`, `strokeStyle`, `roughness`, `roundness`, `opacity`) around the widget.
+- `fontFamily` (`hand`, `normal`, `code`) and `strokeColor` restyle the widget's content; with `roughness` above 0, bar and line charts are drawn by hand with rough.js.
+- People can restyle a widget's frame from Excalidraw's style panel. Fields they change are pinned and agent updates keep them.
+- `exp catalog` (MCP `catalog_get`) lists the fields and Excalidraw's palette.
 
 ## Layout
 
@@ -78,7 +95,7 @@ packages/
   client/   HTTP client for the daemon
   mcp/      MCP tools over the client
   cli/      `exp` command (also hosts `exp mcp`)
-  ui/       Excalidraw canvas (React Flow fallback) + widgets (ECharts, tables, stats, logs, markdown)
+  ui/       Excalidraw canvas + widgets (ECharts, tables, stats, logs, markdown)
 examples/   sample recipes
 ```
 

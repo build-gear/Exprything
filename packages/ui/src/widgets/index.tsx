@@ -2,8 +2,11 @@ import DOMPurify from 'dompurify';
 import * as echarts from 'echarts';
 import { marked } from 'marked';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { fontStack, inkOf, loadFonts, seriesColors, type Look } from '../style.ts';
+import { SketchChart, SketchSparkline, sketchSeries } from './sketch.tsx';
 
-type Props = { data: unknown; props: Record<string, unknown> };
+type Props = { data: unknown; props: Record<string, unknown>; look?: Look; seedKey?: string };
+type Row = Record<string, unknown>;
 
 export function Markdown({ data, props }: Props) {
   const text = typeof data === 'string' ? data : String(props.text ?? '');
@@ -23,39 +26,70 @@ export function useDark(): boolean {
   return dark;
 }
 
-export function Chart({ data, props }: Props) {
+/** Hand-drawn when the style is rough and the option is simple enough; ECharts otherwise. */
+export function Chart({ data, props, look, seedKey = '' }: Props) {
+  const rows = useMemo(() => asRows(data) as Row[], [data]);
+  const sketch = useMemo(
+    () => (look && look.roughness > 0 ? sketchSeries((props.option ?? {}) as Record<string, unknown>) : null),
+    [look, props.option],
+  );
+  if (sketch && look) return <SketchChart rows={rows} series={sketch} look={look} seedKey={seedKey} />;
+  return <EChart data={data} option={props.option} look={look} />;
+}
+
+/**
+ * Always drawn with the light theme: in dark mode Excalidraw's canvas filter, which reaches every
+ * <canvas> inside it (ours included), darkens the chart exactly like the shapes around it.
+ */
+function EChart({ data, option, look }: { data: unknown; option: unknown; look?: Look }) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const dark = useDark();
+  const styled = !!look && (!!look.fontFamily || !!inkOf(look));
 
   useEffect(() => {
     if (!el.current) return;
-    const c = echarts.init(el.current, dark ? 'dark' : undefined, { renderer: 'canvas' });
+    const c = echarts.init(el.current, undefined, { renderer: 'canvas' });
     chart.current = c;
     const ro = new ResizeObserver(() => c.resize());
     ro.observe(el.current);
     return () => { ro.disconnect(); c.dispose(); chart.current = null; };
-  }, [dark]);
+  }, []);
 
   useEffect(() => {
-    const option = (props.option ?? {}) as Record<string, unknown>;
-    chart.current?.setOption(
-      {
-        backgroundColor: 'transparent',
-        grid: { left: 40, right: 16, top: 24, bottom: 28, containLabel: true },
-        tooltip: { trigger: 'axis' },
-        ...option,
-        ...(data != null && { dataset: { source: asRows(data) } }),
-      },
-      true,
-    );
-  }, [data, props.option, dark]);
+    let cancelled = false;
+    const rows = data != null ? asRows(data) : undefined;
+    const fontFamily = styled ? fontStack(look) : undefined;
+    const apply = () => {
+      if (cancelled || !chart.current) return;
+      chart.current.setOption(
+        {
+          backgroundColor: 'transparent',
+          grid: { left: 40, right: 16, top: 24, bottom: 28, containLabel: true },
+          // The tooltip is HTML, so the canvas filter does not reach it; theme it directly.
+          tooltip: {
+            trigger: 'axis',
+            ...(dark && { backgroundColor: '#232329', borderColor: '#3d3d44' }),
+            textStyle: { ...(dark && { color: '#e3e3e8' }), ...(fontFamily && { fontFamily }) },
+          },
+          ...(styled && { color: seriesColors(look).map(([stroke]) => stroke), textStyle: { fontFamily } }),
+          ...((option ?? {}) as Record<string, unknown>),
+          ...(rows && { dataset: { source: rows } }),
+        },
+        true,
+      );
+    };
+    // ECharts paints text on a canvas, which does not repaint when a web font arrives.
+    if (styled && look?.fontFamily) void loadFonts(look, sampleText(rows)).then(apply);
+    else apply();
+    return () => { cancelled = true; };
+  }, [data, option, dark, styled, look]);
 
   return <div ref={el} className="w-chart" />;
 }
 
 export function Table({ data, props }: Props) {
-  const rows = asRows(data) as Record<string, unknown>[];
+  const rows = asRows(data) as Row[];
   const columns = (props.columns as string[] | undefined) ?? Object.keys(rows[0] ?? {});
   const [sort, setSort] = useState<{ col: string; dir: 1 | -1 } | null>(null);
   const sorted = useMemo(() => {
@@ -86,14 +120,16 @@ export function Table({ data, props }: Props) {
   );
 }
 
-export function Stat({ data, props }: Props) {
+export function Stat({ data, props, look, seedKey = '' }: Props) {
   const d = typeof data === 'number' ? { value: data } : ((data ?? {}) as { value?: number; delta?: number; series?: number[] });
   const decimals = props.decimals as number | undefined;
   const value = typeof d.value === 'number' ? d.value.toLocaleString(undefined, { maximumFractionDigits: decimals ?? 2 }) : '—';
+  const ink = look && inkOf(look);
+  const series = Array.isArray(d.series) ? d.series.filter((v) => typeof v === 'number') : [];
   return (
     <div className="w-stat">
       <div className="w-stat-value">
-        {value}
+        <span className={ink ? 'wn-ink' : undefined}>{value}</span>
         {props.unit ? <span className="w-stat-unit">{String(props.unit)}</span> : null}
       </div>
       {typeof d.delta === 'number' && (
@@ -101,17 +137,19 @@ export function Stat({ data, props }: Props) {
           {d.delta >= 0 ? '▲' : '▼'} {Math.abs(d.delta).toLocaleString()}
         </div>
       )}
-      {Array.isArray(d.series) && d.series.length > 1 && <Sparkline values={d.series.filter((v) => typeof v === 'number')} />}
+      {series.length > 1 && (look && look.roughness > 0
+        ? <SketchSparkline values={series} look={look} seedKey={seedKey} color={ink ?? seriesColors()[0][0]} />
+        : <Sparkline values={series} ink={!!ink} />)}
     </div>
   );
 }
 
-function Sparkline({ values }: { values: number[] }) {
+function Sparkline({ values, ink }: { values: number[]; ink: boolean }) {
   const min = Math.min(...values);
   const max = Math.max(...values);
   const pts = values.map((v, i) => `${(i / (values.length - 1)) * 100},${30 - ((v - min) / (max - min || 1)) * 28 - 1}`).join(' ');
   return (
-    <svg className="w-spark" viewBox="0 0 100 30" preserveAspectRatio="none">
+    <svg className={ink ? 'w-spark wn-ink' : 'w-spark'} viewBox="0 0 100 30" preserveAspectRatio="none">
       <polyline points={pts} fill="none" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -130,6 +168,11 @@ export function Log({ data, props }: Props) {
 function asRows(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   return data != null && typeof data === 'object' ? [data] : [];
+}
+
+/** Text a chart will show, so the right font subsets (e.g. Hangul) are loaded before it paints. */
+function sampleText(rows: unknown[] | undefined): string {
+  return (rows ?? []).slice(0, 50).map((r) => (r && typeof r === 'object' ? Object.values(r).join(' ') : String(r))).join(' ');
 }
 
 function format(v: unknown): string {

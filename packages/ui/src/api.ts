@@ -1,4 +1,4 @@
-import type { CanvasDrawing, CanvasView } from '@exprything/schema';
+import type { CanvasDrawing, CanvasView, NodeStyle } from '@exprything/schema';
 
 const TOKEN_KEY = 'exprything.token';
 
@@ -30,6 +30,10 @@ export class Api {
 
   moveNode(canvas: string, node: string, rect: { x?: number; y?: number; w?: number; h?: number }) {
     return this.call('PATCH', `/api/canvases/${encodeURIComponent(canvas)}/nodes/${encodeURIComponent(node)}`, rect);
+  }
+
+  restyleNode(canvas: string, node: string, style: Partial<NodeStyle>) {
+    return this.call('PATCH', `/api/canvases/${encodeURIComponent(canvas)}/nodes/${encodeURIComponent(node)}`, { style });
   }
 
   drawing(canvas: string): Promise<CanvasDrawing> {
