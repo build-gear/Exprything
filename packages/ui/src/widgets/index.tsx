@@ -45,7 +45,7 @@ export function Chart({ data, props }: Props) {
         grid: { left: 40, right: 16, top: 24, bottom: 28, containLabel: true },
         tooltip: { trigger: 'axis' },
         ...option,
-        ...(Array.isArray(data) && { dataset: { source: data } }),
+        ...(data != null && { dataset: { source: asRows(data) } }),
       },
       true,
     );
@@ -55,7 +55,7 @@ export function Chart({ data, props }: Props) {
 }
 
 export function Table({ data, props }: Props) {
-  const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+  const rows = asRows(data) as Record<string, unknown>[];
   const columns = (props.columns as string[] | undefined) ?? Object.keys(rows[0] ?? {});
   const [sort, setSort] = useState<{ col: string; dir: 1 | -1 } | null>(null);
   const sorted = useMemo(() => {
@@ -124,6 +124,12 @@ export function Log({ data, props }: Props) {
     if (el.current) el.current.scrollTop = el.current.scrollHeight;
   }, [lines.length]);
   return <pre ref={el} className="w-log">{lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n')}</pre>;
+}
+
+/** JSONata collapses one-item results to the item itself; treat a lone object as a single row. */
+function asRows(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  return data != null && typeof data === 'object' ? [data] : [];
 }
 
 function format(v: unknown): string {
