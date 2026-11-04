@@ -125,7 +125,10 @@ async function openWindow(): Promise<void> {
     webPreferences: { contextIsolation: true, sandbox: true, spellcheck: false },
   });
   win = w;
-  w.on('close', () => writeState({ canvas: canvasOf(w.webContents.getURL()) ?? state.canvas, bounds: w.getNormalBounds() }));
+  const remember = () => writeState({ canvas: canvasOf(w.webContents.getURL()) ?? state.canvas, bounds: w.getNormalBounds() });
+  w.on('close', remember);
+  // As it happens too: a crash or a forced quit never gets to close.
+  w.webContents.on('did-navigate-in-page', remember);
   w.on('closed', () => { win = null; });
 
   // The canvas stays in this window; anything else it links to opens in the browser.
@@ -152,7 +155,14 @@ async function openWindow(): Promise<void> {
   });
   w.webContents.on('did-finish-load', () => { retries = 0; });
 
-  await load(w, state.canvas ?? 'main');
+  await load(w, await lastCanvas(state.canvas));
+}
+
+/** The canvas to open: the one last open here, or the one changed last if that is gone. */
+async function lastCanvas(remembered?: string): Promise<string> {
+  const canvases = await (await connect()).canvases().catch(() => undefined);
+  if (!canvases || canvases.some((c) => c.id === remembered)) return remembered ?? 'main';
+  return canvases.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.id ?? 'main';
 }
 
 async function load(w: BrowserWindow, canvas: string): Promise<void> {
