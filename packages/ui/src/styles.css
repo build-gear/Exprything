@@ -51,8 +51,9 @@ body {
 }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
 
-/* The canvas fills the window; our controls float on it like Excalidraw's own. */
-.stage { height: 100%; position: relative; display: flex; flex-direction: column; }
+/* The canvas fills the window, beside the AI sidebar when it is open; our controls float on it like Excalidraw's own. */
+.stage { height: 100%; position: relative; display: flex; }
+.canvas-area { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
 
 /* Source health, in Excalidraw's top-right slot (where its library button was). */
 .summary {
@@ -61,6 +62,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font: 500 12px/1 Assistant, ui-sans-serif, system-ui, sans-serif; color: var(--island-text); white-space: nowrap;
 }
 .pill { padding: 3px 8px; border-radius: 999px; font-size: 12px; }
+.top-right { display: flex; gap: 8px; }
+.island-button {
+  height: 36px; padding: 0 12px; border: 0; border-radius: 8px; cursor: pointer;
+  background: var(--island); box-shadow: 0 0 0 1px var(--island-ring);
+  font: 500 12px/1 Assistant, ui-sans-serif, system-ui, sans-serif; color: var(--island-text); white-space: nowrap;
+}
+.island-button:hover { box-shadow: 0 0 0 1px var(--island-ring), inset 0 0 0 100px rgb(0 0 0 / 0.04); }
+/* Excalidraw's narrow toolbar fills the top row; the canvas picker's menu opens the sidebar there. */
+.stage:has(.excalidraw--mobile) .top-right .island-button { display: none; }
+
 .pill.warn { background: var(--warn-bg); color: var(--warn); }
 .pill.bad { background: var(--bad-bg); color: var(--bad); }
 
@@ -201,4 +212,126 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .w-log {
   margin: 0; padding: 8px 10px; height: 100%; overflow: auto;
   font: 11.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all;
+}
+
+/* AI sidebar (AiSidebar): the agent's conversation beside the canvas. --agent is the agent's colour. */
+.ai-sidebar {
+  width: 380px; flex: none; min-height: 0; display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
+  background: var(--card); border-left: 1px solid var(--border);
+}
+@media (max-width: 720px) {
+  .ai-sidebar { position: absolute; inset: 0; z-index: 20; width: auto; border-left: 0; }
+}
+.ai-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--border); }
+.ai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--agent); flex: none; }
+.ai-history {
+  flex: 1; min-width: 0; appearance: none; border: 0; background: none; color: var(--text);
+  font: 600 13px/1.3 inherit; padding: 4px 2px; text-overflow: ellipsis; cursor: pointer;
+}
+.ai-icon {
+  width: 28px; height: 28px; flex: none; border: 0; border-radius: 7px; background: none;
+  color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.ai-icon:hover { background: var(--island); color: var(--text); }
+.ai-icon svg { display: block; margin: auto; }
+.ai-title { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
+/* Settings lie over the conversation, which stays laid out under them so it keeps its scroll position. */
+.ai-chat { grid-area: 2 / 1; min-height: 0; display: flex; flex-direction: column; }
+.ai-chat[hidden] { display: flex; visibility: hidden; }
+.ai-meta { padding: 6px 14px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai-setup { display: grid; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.ai-setup label { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.ai-setup select, .ai-setup input {
+  min-width: 0; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--canvas); color: var(--text); font: inherit;
+}
+/* The sidebar's settings (AgentSettings.tsx). */
+.ai-settings { grid-area: 2 / 1; min-height: 0; overflow-y: auto; padding: 12px 14px; }
+.ai-muted { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.agent { padding: 10px 0 12px; border-top: 1px solid var(--border); }
+.agent-name { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; font-weight: 600; }
+.agent-name .ai-muted { margin: 0; }
+.agent-row { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 10px; min-height: 32px; }
+.agent-state { color: var(--muted); }
+.agent-state.on { color: var(--ok); }
+.agent-row button {
+  min-width: 84px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+  background: var(--bg); color: var(--text); font: inherit;
+}
+.agent-row button:disabled { opacity: 0.5; cursor: default; }
+.agent-note { margin: 6px 0 0; color: var(--warn); font-size: 12px; overflow-wrap: anywhere; }
+.agent-error { margin: 8px 0; padding: 6px 10px; border-radius: 6px; background: var(--bad-bg); color: var(--bad); font-size: 12px; overflow-wrap: anywhere; }
+.agent-manual {
+  margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--bg);
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
+}
+.ai-settings-foot { display: grid; gap: 6px; justify-items: start; padding-top: 10px; border-top: 1px solid var(--border); }
+.ai-settings-foot .ai-muted { margin: 0; }
+.ai-settings-foot a { color: var(--accent); }
+.ai-log { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.ai-hint { margin: 0; color: var(--muted); font-size: 12px; }
+.ai-user { align-self: flex-end; max-width: 88%; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.ai-user p {
+  margin: 0; padding: 8px 11px; border-radius: 14px 14px 4px 14px; background: var(--island);
+  color: var(--island-text); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.ai-chip {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--agent) 14%, transparent); color: var(--text); font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ai-chip button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 0 0 2px; font-size: 13px; line-height: 1; }
+.ai-text { line-height: 1.55; overflow-wrap: anywhere; }
+.ai-text > :first-child { margin-top: 0; }
+.ai-text > :last-child { margin-bottom: 0; }
+.ai-text p, .ai-text ul, .ai-text ol { margin: 0 0 8px; }
+.ai-text ul, .ai-text ol { padding-left: 20px; }
+.ai-text pre { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--island); overflow-x: auto; font-size: 12px; }
+.ai-text :not(pre) > code { padding: 1px 4px; border-radius: 4px; background: var(--island); }
+.ai-text a { color: var(--accent); }
+.ai-tool { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: 12px; }
+.ai-tool b { font-weight: 600; flex: none; }
+.ai-tool code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-tool-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--muted); }
+.ai-tool.running .ai-tool-dot { background: var(--agent); animation: ai-pulse 1s ease-in-out infinite; }
+.ai-tool.done .ai-tool-dot { background: var(--ok); }
+.ai-tool.failed .ai-tool-dot { background: var(--bad); }
+@keyframes ai-pulse { 50% { opacity: 0.3; } }
+.ai-approval { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--warn); background: var(--warn-bg); }
+.ai-approval:not(.pending) { border-color: var(--border); background: none; }
+.ai-approval p { margin: 0; }
+.ai-approval code { font-size: 12px; overflow-wrap: anywhere; }
+.ai-approval-actions { display: flex; gap: 8px; }
+.ai-approval-actions button {
+  padding: 5px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+  color: var(--text); font: 600 12px/1.2 inherit; cursor: pointer;
+}
+.ai-approval-actions .ai-allow { background: var(--text); color: var(--card); border-color: var(--text); }
+.ai-approval-state { color: var(--muted); font-size: 12px; }
+.ai-error { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--bad-bg); color: var(--bad); font-size: 12px; overflow-wrap: anywhere; }
+.ai-banner { margin: 0 14px 8px; }
+.ai-typing { display: flex; gap: 4px; padding: 4px 0; }
+.ai-typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: ai-pulse 1.2s ease-in-out infinite; }
+.ai-typing i:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing i:nth-child(3) { animation-delay: 0.4s; }
+.ai-composer { display: grid; gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--border); }
+.ai-attach { display: flex; }
+.ai-link { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+.ai-input {
+  display: flex; align-items: flex-end; gap: 6px; padding: 6px 6px 6px 10px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--canvas);
+}
+.ai-input:focus-within { border-color: var(--agent); }
+.ai-input textarea {
+  flex: 1; min-width: 0; max-height: 180px; resize: none; border: 0; outline: 0; padding: 4px 0;
+  background: none; color: var(--text); font: inherit; line-height: 1.45;
+}
+.ai-send {
+  width: 28px; height: 28px; flex: none; border: 0; border-radius: 8px; background: var(--agent); color: #fff;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.ai-send:disabled { opacity: 0.35; cursor: default; }
+.ai-send.stop { background: var(--text); color: var(--card); font-size: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-tool.running .ai-tool-dot, .ai-typing i { animation: none; }
 }

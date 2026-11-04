@@ -9,12 +9,13 @@ import { HTTPException } from 'hono/http-exception';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { z } from 'zod';
 import {
-  AgentEvent, ApplyRequest, CanvasDrawing, Id, NodeStyle, SelectionReport, authoringGuide, stylePalette, widgetCatalog,
+  AgentEvent, AgentId, ApplyRequest, CanvasDrawing, Id, NodeStyle, SelectionReport, authoringGuide, stylePalette, widgetCatalog,
   type AgentIdentity, type CanvasSelection, type ServerMessage, type StoredNode,
 } from '@exprything/schema';
 import {
   AGENT_IDS, agentStatus, connectAgent, connectNewAgents, disconnectAgent, parseAgent, setAgentActivity,
 } from './agents.ts';
+import { Chats } from './chats.ts';
 import { Engine } from './engine.ts';
 import { DEFAULT_PORT, paths, readOrCreateToken } from './paths.ts';
 import { Presence } from './presence.ts';
@@ -37,6 +38,7 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   };
   const engine = new Engine((msg) => broadcast({ type: 'changed', ...msg }), baseUrl);
   const presence = new Presence((agents) => broadcast({ type: 'presence', agents }));
+  const chats = new Chats(broadcast, (id) => engine.canvases.get(id)?.title);
   const visit = (c: Context, canvas: string) => {
     const agent = agentOf(c);
     if (agent) presence.visit(agent, canvas);
@@ -189,6 +191,46 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     c.json(await wrapValue(() => disconnectAgent(parseAgent(c.req.param('agent'))))),
   );
 
+  // The AI sidebar: conversations with Claude Code or Codex, which the daemon runs.
+  app.get('/api/chats', (c) => c.json(chats.list(c.req.query('canvas'))));
+
+  app.get('/api/chats/folders', (c) => c.json(chats.folders()));
+
+  app.post('/api/chats', async (c) => {
+    const { agent, canvas, cwd } = parse(z.object({ agent: AgentId, canvas: Id, cwd: z.string().min(1) }), await c.req.json());
+    try {
+      return c.json(chats.create(agent, canvas, cwd));
+    } catch (e) {
+      throw new HTTPException(400, { message: (e as Error).message });
+    }
+  });
+
+  app.get('/api/chats/:id', (c) => {
+    const chat = chats.get(c.req.param('id'));
+    if (!chat) throw new HTTPException(404, { message: 'no such chat' });
+    return c.json(chat);
+  });
+
+  app.post('/api/chats/:id/messages', async (c) => {
+    const { text, selection } = parse(
+      z.object({ text: z.string().trim().min(1).max(100_000), selection: SelectionReport.optional() }),
+      await c.req.json(),
+    );
+    await wrap(() => chats.send(c.req.param('id'), text, selection));
+    return c.json({ ok: true });
+  });
+
+  app.post('/api/chats/:id/answers', async (c) => {
+    const { request, allow } = parse(z.object({ request: z.string(), allow: z.boolean() }), await c.req.json());
+    await wrap(() => chats.answer(c.req.param('id'), request, allow));
+    return c.json({ ok: true });
+  });
+
+  app.post('/api/chats/:id/stop', async (c) => {
+    await wrap(() => chats.stop(c.req.param('id')));
+    return c.json({ ok: true });
+  });
+
   if (existsSync(UI_DIST)) {
     app.use('/*', serveStatic({ root: UI_DIST }));
   } else {
@@ -229,6 +271,7 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   writeFileSync(paths.daemon, JSON.stringify({ port, pid: process.pid, version: VERSION } satisfies DaemonInfo));
 
   const shutdown = () => {
+    chats.shutdown();
     engine.stop();
     rmSync(paths.daemon, { force: true });
     server.close();

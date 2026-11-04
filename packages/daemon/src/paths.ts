@@ -13,6 +13,8 @@ export const paths = {
   get root() { return homeDir(); },
   get canvases() { return join(homeDir(), 'canvases'); },
   get drawings() { return join(homeDir(), 'drawings'); },
+  /** Conversations in the AI sidebar, one JSON file each. */
+  get chats() { return join(homeDir(), 'chats'); },
   get sources() { return join(homeDir(), 'sources.json'); },
   get history() { return join(homeDir(), 'history.db'); },
   get token() { return join(homeDir(), 'token'); },

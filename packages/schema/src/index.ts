@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { AgentEventKind, AgentId, type AgentPresence } from './agents.ts';
+import type { ChatItem, ChatSummary } from './chat.ts';
 
 export * from './catalog.ts';
 export * from './agents.ts';
+export * from './chat.ts';
 
 // ---------- primitives ----------
 
@@ -235,7 +237,11 @@ export interface CanvasView {
 
 export type ServerMessage =
   | { type: 'changed'; canvas?: string; source?: string }
-  | { type: 'presence'; agents: AgentPresence[] };
+  | { type: 'presence'; agents: AgentPresence[] }
+  /** A conversation changed: its status, or one of its items was added or replaced. */
+  | { type: 'chat'; chat: ChatSummary; item?: ChatItem }
+  /** More streamed text for an assistant item. */
+  | { type: 'chat.delta'; chat: string; item: string; text: string };
 
 // ---------- selection (what a person has selected on an open canvas) ----------
 

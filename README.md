@@ -93,6 +93,16 @@ Widgets can look like Excalidraw shapes. `style` uses Excalidraw's element prope
 - People can restyle a widget's frame from Excalidraw's style panel. Fields they change are pinned and agent updates keep them.
 - `exp catalog` (MCP `catalog_get`) lists the fields and Excalidraw's palette.
 
+## AI sidebar
+
+**AI** at the top right of the canvas, or ⌘J, opens Claude Code or Codex beside the canvas. Pick the agent and the folder it works in, and talk to it there; it reads and draws on the canvas you have open with Exprything's tools, which it gets for that conversation without `exp connect`.
+
+- Select widgets and say "this": what you selected goes along with your message (take it off with ×).
+- It is your own CLI, with your login, settings and permission rules. When those say to ask, the request shows in the sidebar with **Allow** and **Deny**. Exprything's own canvas tools never ask.
+- The daemon runs the agent, so a conversation keeps going when you close the window, and each canvas keeps its conversations (`~/.exprything/chats/`). They are the agent's own sessions too: `claude --resume` and Codex's history list them.
+- **■** stops the current turn. An agent left idle for 10 minutes stops and picks the session up again with your next message.
+- The sidebar needs no setup. Its settings (the sliders icon) are for the agents' own sessions, such as in your terminal: they do what `exp connect` does and turn on activity reporting.
+
 ## Agents on the canvas
 
 While Claude Code or Codex works on a canvas you have open, you see its cursor there, with its name, and you cannot touch what it is changing.

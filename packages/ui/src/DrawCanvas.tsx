@@ -12,6 +12,7 @@ import type {
 } from '@exprything/schema';
 import { CanvasCtx } from './context.ts';
 import { AgentLayer, ZONE_PADDING, type Zone } from './AgentLayer.tsx';
+import { TOGGLE_AI } from './AiSidebar.tsx';
 import { SourceSummary } from './SourceSummary.tsx';
 import { frameDiff, frameOf, frameOfElement, resolveLook, sameFrame, type Frame, type Look } from './style.ts';
 import { WidgetCard } from './WidgetCard.tsx';
@@ -737,12 +738,17 @@ const onLinkOpen = (el: NonDeleted<ExcalidrawElement>, event: CustomEvent) => {
   if (el.link?.startsWith('exprything:')) event.preventDefault();
 };
 
-/** Source health in Excalidraw's top-right slot. Reads nodes from context so the prop stays stable. */
+/** Source health and the AI button in Excalidraw's top-right slot. Reads nodes from context so the prop stays stable. */
 const renderTopRightUI = () => <CanvasSources />;
 
 function CanvasSources() {
   const nodes = useContext(ViewsCtx);
-  return <SourceSummary nodes={[...nodes.values()]} />;
+  return (
+    <div className="top-right">
+      <SourceSummary nodes={[...nodes.values()]} />
+      <button className="island-button" title="AI sidebar (⌘J)" onClick={() => window.dispatchEvent(new Event(TOGGLE_AI))}>AI</button>
+    </div>
+  );
 }
 
 const EmbeddedWidget = memo(function EmbeddedWidget({ nodeId }: { nodeId: string }) {

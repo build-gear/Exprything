@@ -1,6 +1,10 @@
 import type {
-  AgentPresence, CanvasDrawing, CanvasView, NodeStyle, SelectionReport, ServerMessage,
+  AgentId, AgentPresence, AgentStatus, CanvasDrawing, CanvasView, ChatItem, ChatSummary, NodeStyle, SelectionReport,
+  ServerMessage,
 } from '@exprything/schema';
+
+/** What the daemon says about the AI sidebar's conversations as they run. */
+export type ChatEvent = Extract<ServerMessage, { type: 'chat' | 'chat.delta' }>;
 
 const TOKEN_KEY = 'exprything.token';
 
@@ -26,6 +30,8 @@ export class Api {
   private presence: AgentPresence[] = [];
   private presenceListeners = new Set<() => void>();
   private selectionListeners = new Set<() => void>();
+  private chatListeners = new Set<(e: ChatEvent) => void>();
+  private openListeners = new Set<() => void>();
 
   constructor(private token: string) {}
 
@@ -49,6 +55,45 @@ export class Api {
     this.selectionListeners.add(listener);
     return () => { this.selectionListeners.delete(listener); };
   };
+
+  onChat(listener: (e: ChatEvent) => void): () => void {
+    this.chatListeners.add(listener);
+    return () => { this.chatListeners.delete(listener); };
+  }
+
+  /** Calls back whenever the connection to the daemon (re)opens; what happened while it was down was missed. */
+  onOpen(listener: () => void): () => void {
+    this.openListeners.add(listener);
+    return () => { this.openListeners.delete(listener); };
+  }
+
+  chats(canvas: string): Promise<ChatSummary[]> {
+    return this.call('GET', `/api/chats?canvas=${encodeURIComponent(canvas)}`);
+  }
+
+  chat(id: string): Promise<{ chat: ChatSummary; items: ChatItem[] }> {
+    return this.call('GET', `/api/chats/${id}`);
+  }
+
+  chatFolders(): Promise<{ home: string; recent: string[] }> {
+    return this.call('GET', '/api/chats/folders');
+  }
+
+  createChat(agent: AgentId, canvas: string, cwd: string): Promise<ChatSummary> {
+    return this.call('POST', '/api/chats', { agent, canvas, cwd });
+  }
+
+  sendChat(id: string, text: string, selection?: SelectionReport) {
+    return this.call('POST', `/api/chats/${id}/messages`, { text, selection });
+  }
+
+  answerChat(id: string, request: string, allow: boolean) {
+    return this.call('POST', `/api/chats/${id}/answers`, { request, allow });
+  }
+
+  stopChat(id: string) {
+    return this.call('POST', `/api/chats/${id}/stop`);
+  }
 
   canvases(): Promise<{ id: string; title: string; nodes: number }[]> {
     return this.call('GET', '/api/canvases');
@@ -87,6 +132,22 @@ export class Api {
     return this.call('POST', `/api/sources/${encodeURIComponent(source)}/refresh`);
   }
 
+  agents(): Promise<AgentStatus[]> {
+    return this.call('GET', '/api/agents');
+  }
+
+  connectAgent(agent: AgentId): Promise<AgentStatus> {
+    return this.call('POST', `/api/agents/${agent}/connect`, {});
+  }
+
+  setAgentActivity(agent: AgentId, on: boolean): Promise<AgentStatus> {
+    return this.call('POST', `/api/agents/${agent}/activity`, { on });
+  }
+
+  disconnectAgent(agent: AgentId): Promise<AgentStatus> {
+    return this.call('POST', `/api/agents/${agent}/disconnect`);
+  }
+
   /**
    * Tell the daemon what is selected on the open canvas, so agents can read it. The daemon keeps it
    * for as long as this page stays connected; it is sent again whenever the connection reopens.
@@ -108,12 +169,14 @@ export class Api {
       socket.onmessage = (e) => {
         const msg = JSON.parse(e.data as string) as ServerMessage;
         if (msg.type === 'presence') this.setPresence(msg.agents);
+        else if (msg.type === 'chat' || msg.type === 'chat.delta') this.chatListeners.forEach((l) => l(msg));
         else onChange();
       };
       socket.onopen = () => {
         this.ws = socket;
         if (this.selection) socket.send(JSON.stringify(this.selection));
         onChange();
+        this.openListeners.forEach((l) => l());
       };
       socket.onclose = () => {
         if (this.ws === socket) {
