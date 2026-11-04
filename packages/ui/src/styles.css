@@ -199,6 +199,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .draw-host .main-menu-trigger { visibility: hidden; }
 .draw-host .default-sidebar-trigger,
 .draw-host .sidebar-trigger__label-element { display: none; }
+/* No tool lock in the toolbar, and so nothing for the divider after it to divide. */
+.draw-host .ToolIcon__lock,
+.draw-host .ToolIcon__lock + .App-toolbar__divider { display: none; }
 /* A selected widget's link is internal, so its link editor stays hidden. Its style panel stays:
    restyling the frame there updates the widget's style. */
 .draw-host.widget-selected .excalidraw-hyperlinkContainer { display: none; }

@@ -644,6 +644,21 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
   }, [excalidraw]);
 
   /**
+   * The toolbar has no tool lock (styles.css), so its shortcut stops here: it would turn on something
+   * nobody can see. Stopping the event leaves its default alone, so a q typed into text still goes in.
+   */
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Excalidraw reads a key as lower case unless Shift is down, so Caps Lock's Q counts too.
+      if (e.key.toLowerCase() === 'q' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) e.stopPropagation();
+    };
+    host.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => host.removeEventListener('keydown', onKeyDown, { capture: true });
+  }, [excalidraw]);
+
+  /**
    * Preview Excalidraw's selection border on the widget under the pointer: same place, width and
    * color, at 20% (styles.css). Once the widget is selected Excalidraw draws the real one.
    */
