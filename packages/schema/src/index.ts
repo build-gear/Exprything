@@ -186,6 +186,31 @@ export interface Canvas {
   updatedAt: string;
 }
 
+// ---------- drawings: what is drawn on a canvas, by a person or an agent ----------
+
+export const DrawingType = z.enum(['rectangle', 'ellipse', 'diamond', 'text', 'arrow', 'line']);
+export type DrawingType = z.infer<typeof DrawingType>;
+
+/** One element to create, or the fields to change on one that exists; anything left out stays as it is. */
+export const Drawing = z
+  .object({
+    id: z.string().min(1).max(100).describe('upsert key; an id from canvas_read or the selection changes that element'),
+    type: DrawingType.optional().describe('required to create an element'),
+    x: z.number().optional(),
+    y: z.number().optional(),
+    width: z.number().positive().optional(),
+    height: z.number().positive().optional(),
+    text: z.string().optional().describe('a text element\'s text, or the label on a shape or arrow; an empty string removes a label'),
+    fontSize: z.number().positive().optional().describe('Excalidraw uses 16, 20, 28 or 36'),
+    from: z.string().optional().describe('arrow or line: what it starts at, a drawing id or node:<id> for a widget'),
+    to: z.string().optional().describe('arrow or line: what it ends at, a drawing id or node:<id> for a widget'),
+    // Pairs as plain arrays: a tuple's JSON schema is not one every agent's tool validation takes.
+    points: z.array(z.array(z.number()).length(2)).min(2).optional().describe('arrow or line with no from/to: its [x, y] points, relative to x and y'),
+    style: NodeStyle.optional(),
+  })
+  .strict();
+export type Drawing = z.infer<typeof Drawing>;
+
 // ---------- operations ----------
 
 export const Op = z.discriminatedUnion('op', [
@@ -193,6 +218,8 @@ export const Op = z.discriminatedUnion('op', [
   z.object({ op: z.literal('source.delete'), id: Id }),
   z.object({ op: z.literal('node.upsert'), node: CanvasNode }),
   z.object({ op: z.literal('node.delete'), id: Id }),
+  z.object({ op: z.literal('drawing.upsert'), drawing: Drawing }),
+  z.object({ op: z.literal('drawing.delete'), id: z.string().min(1) }),
 ]);
 export type Op = z.infer<typeof Op>;
 
@@ -213,6 +240,7 @@ export interface DryRunResult {
   ok: boolean;
   sources: { id: string; ok: boolean; sample?: unknown; error?: string }[];
   nodes: { id: string; ok: boolean; sample?: unknown; error?: string }[];
+  drawings: { id: string; ok: boolean; error?: string }[];
 }
 
 export interface ApplyResult {
@@ -233,6 +261,8 @@ export interface NodeView extends StoredNode {
 export interface CanvasView {
   canvas: { id: string; title: string; updatedAt: string; style?: NodeStyle };
   nodes: NodeView[];
+  /** What is drawn on it, summarized; only when asked for, since the page reads the drawing itself. */
+  drawings?: SelectedDrawing[];
 }
 
 export type ServerMessage =
@@ -241,7 +271,9 @@ export type ServerMessage =
   /** A conversation changed: its status, or one of its items was added or replaced. */
   | { type: 'chat'; chat: ChatSummary; item?: ChatItem }
   /** More streamed text for an assistant item. */
-  | { type: 'chat.delta'; chat: string; item: string; text: string };
+  | { type: 'chat.delta'; chat: string; item: string; text: string }
+  /** An agent changed what is drawn on a canvas: the whole elements it wrote, and the ids it removed. */
+  | { type: 'drawing'; canvas: string; elements: Record<string, unknown>[]; removed: string[] };
 
 // ---------- selection (what a person has selected on an open canvas) ----------
 

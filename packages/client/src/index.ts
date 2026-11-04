@@ -55,8 +55,9 @@ export class ExpClient {
     return this.call('GET', '/api/canvases');
   }
 
-  canvas(id: string): Promise<CanvasView> {
-    return this.call('GET', `/api/canvases/${encodeURIComponent(id)}`);
+  /** A canvas as it is now; `drawings` also lists what is drawn on it, for those who will change it. */
+  canvas(id: string, opts: { drawings?: boolean } = {}): Promise<CanvasView> {
+    return this.call('GET', `/api/canvases/${encodeURIComponent(id)}${opts.drawings ? '?drawings=1' : ''}`);
   }
 
   /** What the person has selected on a canvas open in a browser; with no canvas, the one they used last. */

@@ -40,13 +40,15 @@ const tools = {
       'Exprything keeps nodes fresh on its own afterwards, with no further AI calls, so write HOW to compute data ' +
       '(exec command, file, push) with refresh.every and a JSONata transform, not hardcoded results. ' +
       'Always call with dryRun=true first and check the samples. Ids are stable upsert keys. ' +
-      'Widgets can be styled like Excalidraw shapes ("style" on a node or the whole canvas; see catalog_get).',
+      'Widgets can be styled like Excalidraw shapes ("style" on a node or the whole canvas; see catalog_get). ' +
+      'It also creates, changes and removes what is drawn on the canvas, the shapes, text and arrows a person draws: ' +
+      'drawing.upsert and drawing.delete ops, with the ids canvas_read and the selection give you.',
     args: ApplyRequest,
     // Ids are upsert keys, so the same request twice leaves the same canvas.
     annotations: { title: 'Draw on a canvas', readOnlyHint: false, idempotentHint: true, openWorldHint: false },
   },
   canvas_read: {
-    description: 'Read a canvas: nodes, their current data, and each source\'s freshness/error state.',
+    description: 'Read a canvas: nodes, their current data, each source\'s freshness/error state, and what is drawn on it (drawings, by id).',
     args: CanvasArg,
     annotations: { title: 'Read a canvas', readOnlyHint: true, openWorldHint: false },
   },
@@ -58,7 +60,7 @@ const tools = {
   canvas_selection: {
     description:
       'What the person has selected on a canvas open in their browser. Call it when they say "this" or "these". ' +
-      'Returns widget nodes (ids you can update with canvas_apply) and things they drew (type, text, position, ' +
+      'Returns widget nodes and things they drew, with ids you can change with canvas_apply (type, text, position, ' +
       'what an arrow connects; a widget end reads node:<id>). open=false means no browser has the canvas open.',
     args: SelectionArgs,
     annotations: { title: 'Read what the person selected', readOnlyHint: true, openWorldHint: false },
@@ -133,7 +135,7 @@ async function call(client: ExpClient, name: ToolName, args: any): Promise<unkno
       };
     }
     case 'canvas_read':
-      return client.canvas(args.canvas);
+      return client.canvas(args.canvas, { drawings: true });
     case 'canvas_open': {
       const status = await client.status();
       return { url: client.canvasUrl(args.canvas), canvases: await client.canvases(), needsApproval: status.needsApproval, repairs: status.repairs };

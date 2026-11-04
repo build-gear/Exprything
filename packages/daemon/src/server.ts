@@ -37,7 +37,11 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     const data = JSON.stringify(msg);
     for (const s of sockets) if (s.readyState === s.OPEN) s.send(data);
   };
-  const engine = new Engine((msg) => broadcast({ type: 'changed', ...msg }), baseUrl);
+  const engine = new Engine(
+    (msg) => broadcast({ type: 'changed', ...msg }),
+    baseUrl,
+    (canvas, change) => broadcast({ type: 'drawing', canvas, ...change }),
+  );
   const presence = new Presence((agents) => broadcast({ type: 'presence', agents }));
   const chats = new Chats(broadcast, (id) => engine.canvases.get(id)?.title);
   const visit = (c: Context, canvas: string) => {
@@ -68,7 +72,7 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     const view = await engine.view(c.req.param('id'));
     if (!view) throw new HTTPException(404, { message: 'no such canvas' });
     visit(c, view.canvas.id);
-    return c.json(view);
+    return c.json(c.req.query('drawings') ? { ...view, drawings: engine.drawings(view.canvas.id) } : view);
   });
 
   app.delete('/api/canvases/:id', (c) => {

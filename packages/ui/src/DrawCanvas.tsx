@@ -10,6 +10,7 @@ import {
 import type {
   AgentPresence, AgentTarget, CanvasDrawing, CanvasView, NodeStyle, NodeView, SelectedDrawing, SelectionReport,
 } from '@exprything/schema';
+import type { DrawingEvent } from './api.ts';
 import { CanvasCtx } from './context.ts';
 import { AgentLayer, ZONE_PADDING, type Zone } from './AgentLayer.tsx';
 import { TOGGLE_AI } from './AiSidebar.tsx';
@@ -280,6 +281,9 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
   const projectionPending = useRef(false);
   const savedSignature = useRef('');
   const pendingSave = useRef<CanvasDrawing | null>(null);
+  const savesInFlight = useRef(0);
+  /** Agents' drawing changes on their way into the scene. */
+  const drawingChanges = useRef<DrawingEvent[]>([]);
   const saveTimer = useRef<number | undefined>(undefined);
   const syncTimer = useRef<number | undefined>(undefined);
   const reportTimer = useRef<number | undefined>(undefined);
@@ -364,6 +368,53 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
   }, [excalidraw, lookOf]);
 
   useEffect(() => { project(); }, [project, nodes]);
+
+  /**
+   * Agents change the drawing through the daemon, but this page saves the scene as a whole, so their
+   * changes have to reach the scene or the next save would undo them. A drag in progress finishes
+   * first. Unlike a widget, a drawing is the person's own, so these go on their undo stack.
+   *
+   * The daemon has these changes already, so they do not cause a save here: every open page gets
+   * them, and saving would write each page's copy of everything else over what another page saved.
+   * A save that is waiting or under way predates them, though, so that one goes again with them in.
+   */
+  const applyDrawingChanges = useCallback(() => {
+    if (!excalidraw || pointerDown.current || !drawingChanges.current.length) return;
+    const incoming = new Map<string, ExcalidrawElement>();
+    const removed = new Set<string>();
+    for (const change of drawingChanges.current.splice(0)) {
+      for (const id of change.removed) {
+        incoming.delete(id);
+        removed.add(id);
+      }
+      for (const el of change.elements as unknown as ExcalidrawElement[]) {
+        removed.delete(el.id);
+        incoming.set(el.id, el);
+      }
+    }
+    const scene = excalidraw.getSceneElementsIncludingDeleted();
+    const restored = new Map(restoreElements([...incoming.values()], scene).map((el) => [el.id, el]));
+    const known = new Set(scene.map((el) => el.id));
+    const merged = [
+      ...scene.map((el) => (removed.has(el.id) ? newElementWith(el, { isDeleted: true }) : restored.get(el.id) ?? el)),
+      ...[...restored.values()].filter((el) => !known.has(el.id)),
+    ];
+    excalidraw.updateScene({
+      elements: merged.map((el) => (widgetNodeId(el) && !el.isDeleted ? withArrowBindings(el, merged) : el)),
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    const saving = pendingSave.current || savesInFlight.current > 0;
+    savedSignature.current = saving ? '' : drawingSignature(excalidraw.getSceneElementsIncludingDeleted());
+  }, [excalidraw]);
+
+  useEffect(() => api.onDrawing((e) => {
+    if (e.canvas !== canvas) return;
+    drawingChanges.current.push(e);
+    applyDrawingChanges();
+  }), [api, canvas, applyDrawingChanges]);
+
+  // What arrived before Excalidraw was ready.
+  useEffect(() => { applyDrawingChanges(); }, [applyDrawingChanges]);
 
   /** Send the person's widget moves and resizes to the daemon, and undo edits widgets cannot take. */
   const syncWidgets = useCallback(() => {
@@ -479,7 +530,10 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     const drawing = pendingSave.current;
     if (!drawing) return;
     pendingSave.current = null;
-    api.saveDrawing(canvas, drawing, keepalive).catch(() => { savedSignature.current = ''; });
+    savesInFlight.current += 1;
+    api.saveDrawing(canvas, drawing, keepalive)
+      .catch(() => { savedSignature.current = ''; })
+      .finally(() => { savesInFlight.current -= 1; });
   }, [api, canvas]);
 
   useEffect(() => {
@@ -668,11 +722,12 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
         projectionPending.current = false;
         project();
       }
+      applyDrawingChanges();
       syncWidgets();
       yieldToAgents();
       placeOutline();
     }, 0);
-  }, [project, syncWidgets, yieldToAgents, placeOutline]);
+  }, [project, applyDrawingChanges, syncWidgets, yieldToAgents, placeOutline]);
 
   const renderEmbeddable = useCallback((el: NonDeleted<ExcalidrawEmbeddableElement>) => {
     const id = (el.customData?.exprything as { node?: string } | undefined)?.node ?? widgetNodeId(el);

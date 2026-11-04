@@ -6,6 +6,9 @@ import type {
 /** What the daemon says about the AI sidebar's conversations as they run. */
 export type ChatEvent = Extract<ServerMessage, { type: 'chat' | 'chat.delta' }>;
 
+/** What an agent changed in a canvas's drawing. */
+export type DrawingEvent = Extract<ServerMessage, { type: 'drawing' }>;
+
 const TOKEN_KEY = 'exprything.token';
 
 /** `exp open` passes the token in the URL hash (never sent to the server); keep it and strip it from the URL. */
@@ -31,6 +34,7 @@ export class Api {
   private presenceListeners = new Set<() => void>();
   private selectionListeners = new Set<() => void>();
   private chatListeners = new Set<(e: ChatEvent) => void>();
+  private drawingListeners = new Set<(e: DrawingEvent) => void>();
   private openListeners = new Set<() => void>();
 
   constructor(private token: string) {}
@@ -59,6 +63,11 @@ export class Api {
   onChat(listener: (e: ChatEvent) => void): () => void {
     this.chatListeners.add(listener);
     return () => { this.chatListeners.delete(listener); };
+  }
+
+  onDrawing(listener: (e: DrawingEvent) => void): () => void {
+    this.drawingListeners.add(listener);
+    return () => { this.drawingListeners.delete(listener); };
   }
 
   /** Calls back whenever the connection to the daemon (re)opens; what happened while it was down was missed. */
@@ -166,6 +175,7 @@ export class Api {
         const msg = JSON.parse(e.data as string) as ServerMessage;
         if (msg.type === 'presence') this.setPresence(msg.agents);
         else if (msg.type === 'chat' || msg.type === 'chat.delta') this.chatListeners.forEach((l) => l(msg));
+        else if (msg.type === 'drawing') this.drawingListeners.forEach((l) => l(msg));
         else onChange();
       };
       socket.onopen = () => {

@@ -95,6 +95,11 @@ Author recipes, not results:
 - Style fields a person changed on the canvas stay as they set them; your updates do not override those.
 - While you work the person sees your cursor. A dry run reserves what it touches: they cannot edit those widgets, or
   the places new ones will land, until you apply for real or about 20 seconds pass. So apply soon after a dry run.
+- Shapes, text and arrows on the canvas are drawings, and you can change them too: ops drawing.upsert and drawing.delete
+  in canvas_apply. canvas_read lists them by id, and so does the selection. Upserting an id changes only the fields you
+  give; a new id needs a type (rectangle, ellipse, diamond, text, arrow, line). text is a text element's words, or the
+  label on a shape or arrow. An arrow's from and to join it to drawing ids, or node:<id> for a widget, and it follows
+  what it joins. Widgets are not drawings: use node.upsert and node.delete for those.
 - When the person says "this" or "these", call canvas_selection: it lists the widgets (node ids) and the shapes,
   text and arrows they have selected on the canvas open in their browser.
 - Sources of kind "agent" read what connected coding agents did (after \`exp connect <agent> --activity\`): recent

@@ -139,6 +139,7 @@ While Claude Code or Codex works on a canvas you have open, you see its cursor t
 - The cursor shows up when the agent reads the canvas or your selection, goes to what it is changing, and leaves about 10 seconds after its last call. When that is out of view, the cursor waits at the edge of the canvas.
 - A dry run reserves what it touches: the widgets it writes or removes, the widgets reading a source it writes, and the places new widgets will land. They stay reserved until the agent applies for real and you have seen the change land, or for 20 seconds if it never does.
 - Clicks, drags, right-clicks and widget buttons on what is reserved do nothing, and it leaves your selection; the selection comes back afterwards unless you selected something else. Panning and zooming still work, and a drag you already started is yours to finish.
+- Agents can change what is drawn, not only widgets: they create, edit and delete shapes, text and arrows (`drawing.upsert` and `drawing.delete` in `canvas_apply`). Labels and arrows stay with what they belong to, and with the canvas open, ⌘Z takes back an agent's change.
 - It works for agents on MCP and for `exp` run from an agent's shell. `exp` in your own terminal shows no cursor. Nothing about it is saved.
 
 ## Agent activity

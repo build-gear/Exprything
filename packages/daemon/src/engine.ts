@@ -1,10 +1,11 @@
 import {
   ApplyRequest, activityCanvas,
-  type AgentEvent, type AgentTarget, type ApplyResult, type Canvas, type CanvasView, type DryRunResult, type NodeView,
-  type Source, type StoredNode,
+  type AgentEvent, type AgentTarget, type ApplyResult, type Canvas, type CanvasView, type DryRunResult, type NodeView, type Op,
+  type SelectedDrawing, type Source, type StoredNode,
 } from '@exprything/schema';
 import { ActivityLog } from './activity.ts';
 import { CanvasStore } from './canvases.ts';
+import { DrawingEdit, summarize, type DrawnElement } from './drawings.ts';
 import { History } from './history.ts';
 import { ensureHome, paths } from './paths.ts';
 import { applyTransform, runSource } from './runner.ts';
@@ -18,7 +19,11 @@ export class Engine {
   readonly sources: SourceManager;
   readonly canvases: CanvasStore;
 
-  constructor(private notify: (msg: { canvas?: string; source?: string }) => void, private baseUrl: () => string) {
+  constructor(
+    private notify: (msg: { canvas?: string; source?: string }) => void,
+    private baseUrl: () => string,
+    private drawingChanged: (canvas: string, change: DrawingEdit['change']) => void,
+  ) {
     ensureHome();
     this.history = new History(paths.history);
     this.activity = new ActivityLog(paths.history);
@@ -55,6 +60,8 @@ export class Engine {
 
   apply(req: ApplyRequest): ApplyResult {
     this.checkReferences(req);
+    // Worked out first: a drawing that cannot be made stops the request before anything changes.
+    const drawing = this.drawingEdit(req);
     const canvas = this.canvases.ensure(req.canvas, req.title);
     if (req.style) canvas.style = Object.keys(req.style).length ? req.style : undefined;
     const needsApproval: string[] = [];
@@ -76,15 +83,35 @@ export class Engine {
       }
     }
     this.canvases.save(canvas);
+    if (drawing) {
+      this.canvases.saveDrawing(canvas.id, { ...this.canvases.getDrawing(canvas.id), elements: drawing.result });
+      this.drawingChanged(canvas.id, drawing.change);
+    }
     this.notify({ canvas: canvas.id });
     return { canvas: canvas.id, applied: req.ops.length, needsApproval, url: `${this.baseUrl()}/#/c/${canvas.id}` };
   }
 
   /**
    * What a request will change on its canvas and where, without saving anything: the nodes it writes
-   * or removes, the nodes reading a source it writes, and every node when it sets the canvas style.
+   * or removes, the nodes reading a source it writes, every node when it sets the canvas style, and
+   * the drawings it writes or removes.
    */
   targets(req: ApplyRequest): AgentTarget[] {
+    const { draft, nodes, sources } = this.simulate(req);
+    for (const n of draft.nodes) {
+      if (!nodes.has(n.id) && (req.style || (n.source && sources.has(n.source)))) nodes.set(n.id, n);
+    }
+    let drawings: AgentTarget[] = [];
+    try {
+      drawings = this.drawingEdit(req)?.targets ?? [];
+    } catch {
+      // The request itself fails on this, and says why.
+    }
+    return [...[...nodes.values()].map(({ id, x, y, w, h }) => ({ node: id, x, y, w, h })), ...drawings];
+  }
+
+  /** The canvas as the request's node and source ops leave it, without saving anything. */
+  private simulate(req: ApplyRequest) {
     const nodes = new Map<string, StoredNode>();
     const sources = new Set<string>();
     const draft: Canvas = { id: req.canvas, title: req.canvas, nodes: [...(this.canvases.get(req.canvas)?.nodes ?? [])], updatedAt: '' };
@@ -95,14 +122,31 @@ export class Engine {
         const gone = draft.nodes.find((n) => n.id === op.id);
         if (gone) nodes.set(gone.id, gone);
         this.canvases.deleteNode(draft, op.id);
-      } else {
-        sources.add(op.op === 'source.upsert' ? op.source.id : op.id);
+      } else if (op.op === 'source.upsert') {
+        sources.add(op.source.id);
+      } else if (op.op === 'source.delete') {
+        sources.add(op.id);
       }
     }
-    for (const n of draft.nodes) {
-      if (!nodes.has(n.id) && (req.style || (n.source && sources.has(n.source)))) nodes.set(n.id, n);
-    }
-    return [...nodes.values()].map(({ id, x, y, w, h }) => ({ node: id, x, y, w, h }));
+    return { draft, nodes, sources };
+  }
+
+  /** The request's drawing ops worked out in full, against the widgets it leaves on the canvas. */
+  private drawingEdit(req: ApplyRequest): DrawingEdit | undefined {
+    const ops = req.ops.filter(isDrawingOp);
+    if (!ops.length) return undefined;
+    const edit = this.newDrawingEdit(req);
+    for (const op of ops) runDrawingOp(edit, op);
+    return edit;
+  }
+
+  private newDrawingEdit(req: ApplyRequest): DrawingEdit {
+    return new DrawingEdit(this.canvases.getDrawing(req.canvas).elements as DrawnElement[], this.simulate(req).draft.nodes);
+  }
+
+  /** What is drawn on a canvas, as agents read it. */
+  drawings(canvas: string): SelectedDrawing[] {
+    return summarize(this.canvases.getDrawing(canvas).elements as DrawnElement[]);
   }
 
   /**
@@ -132,7 +176,7 @@ export class Engine {
       return res;
     };
 
-    const result: DryRunResult = { ok: true, sources: [], nodes: [] };
+    const result: DryRunResult = { ok: true, sources: [], nodes: [], drawings: [] };
     for (const id of pending.keys()) {
       const r = await evalSource(id);
       result.sources.push({ id, ok: r.ok, sample: r.ok ? truncate(r.value) : undefined, error: r.error });
@@ -155,7 +199,17 @@ export class Engine {
         result.nodes.push({ id: node.id, ok: false, error: (e as Error).message });
       }
     }
-    result.ok = [...result.sources, ...result.nodes].every((x) => x.ok);
+    const drawing = this.newDrawingEdit(req);
+    for (const op of req.ops.filter(isDrawingOp)) {
+      const id = op.op === 'drawing.upsert' ? op.drawing.id : op.id;
+      try {
+        runDrawingOp(drawing, op);
+        result.drawings.push({ id, ok: true });
+      } catch (e) {
+        result.drawings.push({ id, ok: false, error: (e as Error).message });
+      }
+    }
+    result.ok = [...result.sources, ...result.nodes, ...result.drawings].every((x) => x.ok);
     return result;
   }
 
@@ -205,6 +259,15 @@ export class Engine {
         recipe: x.source,
       }));
   }
+}
+
+type DrawingOp = Extract<Op, { op: 'drawing.upsert' | 'drawing.delete' }>;
+
+const isDrawingOp = (op: Op): op is DrawingOp => op.op === 'drawing.upsert' || op.op === 'drawing.delete';
+
+function runDrawingOp(edit: DrawingEdit, op: DrawingOp): void {
+  if (op.op === 'drawing.upsert') edit.upsert(op.drawing);
+  else edit.delete(op.id);
 }
 
 function truncate(v: unknown): unknown {
