@@ -126,7 +126,7 @@ The canvas and the desktop app's menus follow your browser's or Mac's language: 
 **AI** at the top right of the canvas, or ⌘J, opens Claude Code or Codex beside the canvas. Pick the agent and talk to it there; it reads and draws on the canvas you have open with Exprything's tools, which it gets for that conversation without `exp connect`.
 
 - Conversations start in `~/.exprything/workspace`, and there is no folder to pick. To work on a project, tell the agent where it is: its own permission rules apply, and macOS asks about your Desktop, Documents and Downloads folders as usual.
-- Select widgets and say "this": what you selected goes along with your message (take it off with ×).
+- Select widgets or shapes and say "this": what you selected goes along with your message (take it off with ×), and the agent works from that, even if you select something else after sending.
 - It is your own CLI, with your login, settings and permission rules. When those say to ask, the request shows in the sidebar with **Allow** and **Deny**. Exprything's own canvas tools never ask.
 - The daemon runs the agent, so a conversation keeps going when you close the window, and each canvas keeps its conversations (`~/.exprything/chats/`). They are the agent's own sessions too: `claude --resume` in that folder and Codex's history list them.
 - **■** stops the current turn. An agent left idle for 10 minutes stops and picks the session up again with your next message.

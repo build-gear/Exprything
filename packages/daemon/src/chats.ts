@@ -224,7 +224,7 @@ function instructionsFor(canvas: string, title?: string): string {
   return [
     `You are running in the AI sidebar of Exprything, next to the canvas "${title ?? canvas}" (id "${canvas}"). The person has it open while they talk to you.`,
     `Read and draw on it with the exprything MCP tools, passing canvas "${canvas}" unless they name another one.`,
-    'When they say "this" or "these", their message starts with what they have selected; canvas_selection tells you more.',
+    'When they select something, their message starts with what was selected as they sent it. That is what they mean, even if the canvas has changed since, so act on it and do not check it with canvas_selection. Call canvas_selection only when they say "this" and the message names nothing.',
     `Your working folder, ${paths.workspace}, is Exprything's own: keep files you make there. It is not a project of theirs, so when they mention one, use the path they give you, or ask where it is.`,
     'They read your replies in a narrow sidebar, so keep them short.',
   ].join(' ');
@@ -234,7 +234,7 @@ function instructionsFor(canvas: string, title?: string): string {
 function describeSelection(sel: SelectionReport): { label: string; text: string } | undefined {
   const parts = [
     ...sel.nodes.map((n) => `widget "${n.title ?? n.id}" (node ${n.id}, ${n.type}${n.source ? `, source ${n.source}` : ''})`),
-    ...sel.drawings.map((d) => (d.text ? `${d.type} "${d.text}"` : d.type)),
+    ...sel.drawings.map((d) => `${d.type}${d.text ? ` "${d.text}"` : ''} (drawing ${d.id})`),
   ];
   if (!parts.length) return undefined;
   const only = sel.total === 1 && (sel.nodes[0]?.title ?? sel.nodes[0]?.id ?? sel.drawings[0]?.text ?? sel.drawings[0]?.type);
