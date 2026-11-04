@@ -231,7 +231,12 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   });
 
   if (existsSync(UI_DIST)) {
-    app.use('/*', serveStatic({ root: UI_DIST }));
+    app.use('/*', serveStatic({
+      root: UI_DIST,
+      // Bundles are named by their content, but the page naming them is not: left to itself, a browser
+      // keeps its copy for a while after an update, and runs the old build or asks for bundles that are gone.
+      onFound: (path, c) => { if (path.endsWith('.html')) c.header('Cache-Control', 'no-cache'); },
+    }));
   } else {
     app.get('/', (c) => c.text('UI is not built. Run `pnpm build`, or `pnpm dev:ui` for development.'));
   }
