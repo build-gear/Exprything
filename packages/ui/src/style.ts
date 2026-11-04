@@ -39,16 +39,17 @@ const FONTS = {
 
 export const fontStack = (look?: Look) => (look?.fontFamily ? FONTS[look.fontFamily].stack : undefined);
 
+/** Canvas-drawn text in a widget with no font of its own: the UI's Hangul, and ECharts' usual font for the rest. */
+export const CHART_FONT = "'Exprything Hangul', sans-serif";
+
 /**
  * Canvas-drawn text (ECharts) does not repaint when a web font arrives, so load the faces first.
  * `sample` decides which unicode-range subsets (e.g. Hangul) are fetched.
  */
 export async function loadFonts(look: Look | undefined, sample: string): Promise<void> {
-  if (!look?.fontFamily) return;
   const text = sample || 'Aa1';
-  await Promise.all(
-    [FONTS[look.fontFamily].family, 'Xiaolai'].map((f) => document.fonts.load(`16px "${f}"`, text).catch(() => [])),
-  );
+  const families = look?.fontFamily ? [FONTS[look.fontFamily].family, 'Xiaolai'] : ['Exprything Hangul'];
+  await Promise.all(families.map((f) => document.fonts.load(`16px "${f}"`, text).catch(() => [])));
 }
 
 /** Excalidraw's color picker hues: stroke (open-color shade 8) and the matching fill (shade 2). */

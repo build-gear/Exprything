@@ -119,6 +119,8 @@ Widgets can look like Excalidraw shapes. `style` uses Excalidraw's element prope
 - People can restyle a widget's frame from Excalidraw's style panel. Fields they change are pinned and agent updates keep them.
 - `exp catalog` (MCP `catalog_get`) lists the fields and Excalidraw's palette.
 
+The canvas and the desktop app's menus follow your browser's or Mac's language: Korean, or English otherwise. Hangul in the UI is set in [Poor Story](https://fonts.google.com/specimen/Poor+Story) by YoonDesign (SIL Open Font License 1.1).
+
 ## AI sidebar
 
 **AI** at the top right of the canvas, or ⌘J, opens Claude Code or Codex beside the canvas. Pick the agent and talk to it there; it reads and draws on the canvas you have open with Exprything's tools, which it gets for that conversation without `exp connect`.

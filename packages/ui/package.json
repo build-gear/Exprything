@@ -10,6 +10,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
     "@exprything/schema": "workspace:*",
+    "@fontsource/poor-story": "5.3.0",
     "dompurify": "^3.4.17",
     "echarts": "^6.1.0",
     "marked": "^18.1.3",

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Api, initToken } from './api.ts';
 import { App } from './App.tsx';
 import { korean, tRich } from './i18n.ts';
+import './hangul-font.css';
 // After the canvas libraries' own CSS, so our overrides win.
 import './styles.css';
 

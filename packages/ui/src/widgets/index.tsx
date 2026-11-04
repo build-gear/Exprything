@@ -3,7 +3,7 @@ import * as echarts from 'echarts';
 import { marked } from 'marked';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SkeletonBox } from 'skullet/react';
-import { fontStack, inkOf, loadFonts, seriesColors, type Look } from '../style.ts';
+import { CHART_FONT, fontStack, inkOf, loadFonts, seriesColors, type Look } from '../style.ts';
 import { SketchChart, SketchSparkline, sketchSeries } from './sketch.tsx';
 
 type Props = { data: unknown; props: Record<string, unknown>; look?: Look; seedKey?: string };
@@ -65,7 +65,7 @@ function EChart({ data, option, look }: { data: unknown; option: unknown; look?:
   useEffect(() => {
     let cancelled = false;
     const rows = data != null ? asRows(data) : undefined;
-    const fontFamily = styled ? fontStack(look) : undefined;
+    const fontFamily = (styled ? fontStack(look) : undefined) ?? CHART_FONT;
     const apply = () => {
       if (cancelled || !chart.current) return;
       chart.current.setOption(
@@ -76,9 +76,10 @@ function EChart({ data, option, look }: { data: unknown; option: unknown; look?:
           tooltip: {
             trigger: 'axis',
             ...(dark && { backgroundColor: '#232329', borderColor: '#3d3d44' }),
-            textStyle: { ...(dark && { color: '#e3e3e8' }), ...(fontFamily && { fontFamily }) },
+            textStyle: { ...(dark && { color: '#e3e3e8' }), fontFamily },
           },
-          ...(styled && { color: seriesColors(look).map(([stroke]) => stroke), textStyle: { fontFamily } }),
+          textStyle: { fontFamily },
+          ...(styled && { color: seriesColors(look).map(([stroke]) => stroke) }),
           ...((option ?? {}) as Record<string, unknown>),
           ...(rows && { dataset: { source: rows } }),
         },
@@ -86,8 +87,7 @@ function EChart({ data, option, look }: { data: unknown; option: unknown; look?:
       );
     };
     // ECharts paints text on a canvas, which does not repaint when a web font arrives.
-    if (styled && look?.fontFamily) void loadFonts(look, sampleText(rows)).then(apply);
-    else apply();
+    void loadFonts(look, `${sampleText(rows)} ${JSON.stringify(option ?? '')}`).then(apply);
     return () => { cancelled = true; };
   }, [data, option, dark, styled, look]);
 
