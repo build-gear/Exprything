@@ -75,12 +75,8 @@ export class Api {
     return this.call('GET', `/api/chats/${id}`);
   }
 
-  chatFolders(): Promise<{ home: string; recent: string[] }> {
-    return this.call('GET', '/api/chats/folders');
-  }
-
-  createChat(agent: AgentId, canvas: string, cwd: string): Promise<ChatSummary> {
-    return this.call('POST', '/api/chats', { agent, canvas, cwd });
+  createChat(agent: AgentId, canvas: string): Promise<ChatSummary> {
+    return this.call('POST', '/api/chats', { agent, canvas });
   }
 
   sendChat(id: string, text: string, selection?: SelectionReport) {

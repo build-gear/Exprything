@@ -15,6 +15,8 @@ export const paths = {
   get drawings() { return join(homeDir(), 'drawings'); },
   /** Conversations in the AI sidebar, one JSON file each. */
   get chats() { return join(homeDir(), 'chats'); },
+  /** Where those conversations start. */
+  get workspace() { return join(homeDir(), 'workspace'); },
   get sources() { return join(homeDir(), 'sources.json'); },
   get history() { return join(homeDir(), 'history.db'); },
   get token() { return join(homeDir(), 'token'); },
@@ -35,6 +37,7 @@ export function expandHome(p: string): string {
 export function ensureHome(): void {
   mkdirSync(paths.canvases, { recursive: true });
   mkdirSync(paths.drawings, { recursive: true });
+  mkdirSync(paths.workspace, { recursive: true });
 }
 
 /** Read the API token, creating it (0600) on first use. */

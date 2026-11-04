@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentId, ChatItem, ChatStatus, ChatSummary, SelectionReport, ServerMessage } from '@exprything/schema';
 import { agentCli, agentName, type Cli } from './agents.ts';
 import { startClaude } from './chat-claude.ts';
 import { startCodex } from './chat-codex.ts';
-import { expandHome, paths, readJson, writeJsonAtomic } from './paths.ts';
+import { paths, readJson, writeJsonAtomic } from './paths.ts';
 import { writeShim } from './shim.ts';
 
 /** An agent left idle this long is stopped; the next message resumes its session. */
@@ -84,17 +83,9 @@ export class Chats {
     return chat && { chat: summary(chat), items: chat.items };
   }
 
-  /** Folders to offer for a new conversation: where earlier ones ran, then home. */
-  folders(): { home: string; recent: string[] } {
-    const recent = [...new Set(this.list().map((c) => c.cwd))].filter((d) => statSync(d, { throwIfNoEntry: false })?.isDirectory());
-    return { home: homedir(), recent };
-  }
-
-  create(agent: AgentId, canvas: string, cwd: string): ChatSummary {
-    const dir = expandHome(cwd.trim());
-    if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`no such folder: ${cwd}`);
+  create(agent: AgentId, canvas: string): ChatSummary {
     const at = now();
-    const chat: Chat = { id: randomUUID(), agent, canvas, cwd: dir, title: '', status: 'idle', createdAt: at, updatedAt: at, items: [] };
+    const chat: Chat = { id: randomUUID(), agent, canvas, cwd: paths.workspace, title: '', status: 'idle', createdAt: at, updatedAt: at, items: [] };
     this.chats.set(chat.id, chat);
     this.changed(chat);
     return summary(chat);
@@ -234,6 +225,7 @@ function instructionsFor(canvas: string, title?: string): string {
     `You are running in the AI sidebar of Exprything, next to the canvas "${title ?? canvas}" (id "${canvas}"). The person has it open while they talk to you.`,
     `Read and draw on it with the exprything MCP tools, passing canvas "${canvas}" unless they name another one.`,
     'When they say "this" or "these", their message starts with what they have selected; canvas_selection tells you more.',
+    `Your working folder, ${paths.workspace}, is Exprything's own: keep files you make there. It is not a project of theirs, so when they mention one, use the path they give you, or ask where it is.`,
     'They read your replies in a narrow sidebar, so keep them short.',
   ].join(' ');
 }

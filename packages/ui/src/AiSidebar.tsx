@@ -13,7 +13,6 @@ import type { Api, ChatEvent } from './api.ts';
 export const TOGGLE_AI = 'exprything:ai';
 
 const AGENT_KEY = 'exprything.ai.agent';
-const FOLDER_KEY = 'exprything.ai.folder';
 /** How close to the bottom the log counts as following the conversation, in px. */
 const FOLLOW_SLACK = 80;
 
@@ -21,8 +20,8 @@ const remember = (key: string) => { try { return localStorage.getItem(key) ?? un
 const keep = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* storage may be blocked */ } };
 
 /**
- * Claude Code or Codex next to the canvas. The daemon runs the agent as the person's own CLI, in a folder
- * they choose, with Exprything's canvas tools; this shows the conversation and answers its approval prompts.
+ * Claude Code or Codex next to the canvas. The daemon runs the agent as the person's own CLI, in Exprything's
+ * workspace, with its canvas tools; this shows the conversation and answers its approval prompts.
  * A canvas keeps its conversations, newest first. Its settings connect the agents to their own sessions.
  */
 export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
@@ -33,12 +32,10 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
   onClose: () => void;
 }) {
   const [agents, setAgents] = useState<AgentStatus[] | null>(null);
-  const [folders, setFolders] = useState<{ home: string; recent: string[] } | null>(null);
   const [chats, setChats] = useState<ChatSummary[] | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [items, setItems] = useState<ChatItem[]>([]);
   const [agent, setAgent] = useState<AgentId | undefined>(() => remember(AGENT_KEY) as AgentId | undefined);
-  const [folder, setFolder] = useState<string | undefined>(() => remember(FOLDER_KEY));
   const [error, setError] = useState<string | null>(null);
   const chatRef = useRef(chatId);
   chatRef.current = chatId;
@@ -47,11 +44,9 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
   const status: ChatStatus = chat?.status ?? 'idle';
   const installed = agents?.filter((a) => a.cli) ?? [];
   const chosen = installed.find((a) => a.agent === agent) ?? installed[0];
-  const cwd = folder ?? folders?.recent[0] ?? folders?.home ?? '';
 
   useEffect(() => {
     api.agents().then(setAgents, (e: Error) => setError(e.message));
-    api.chatFolders().then(setFolders, () => {});
   }, [api]);
 
   // Each canvas opens on its latest conversation.
@@ -106,9 +101,8 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
       let id = chatRef.current;
       if (!id) {
         if (!chosen) throw new Error('Neither Claude Code nor Codex is installed on this computer.');
-        const created = await api.createChat(chosen.agent, canvas, cwd);
+        const created = await api.createChat(chosen.agent, canvas);
         keep(AGENT_KEY, created.agent);
-        keep(FOLDER_KEY, cwd);
         setChats((list) => [created, ...(list ?? [])]);
         chatRef.current = id = created.id;
         setChatId(created.id);
@@ -121,7 +115,7 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
       setError((e as Error).message);
       return false;
     }
-  }, [api, canvas, chosen, cwd]);
+  }, [api, canvas, chosen]);
 
   const answer = useCallback((request: string, allow: boolean) => {
     if (chatId) api.answerChat(chatId, request, allow).catch((e: Error) => setError(e.message));
@@ -173,7 +167,7 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
       {/* Hidden, not unmounted: settings keep what is typed and the place in the conversation. */}
       <div className="ai-chat" hidden={settings}>
         {chat ? (
-          <div className="ai-meta" title={chat.cwd}>{name} · {shortPath(chat.cwd, folders?.home)}</div>
+          <div className="ai-meta" title={chat.cwd}>{name}</div>
         ) : (
           <div className="ai-setup">
             <label>
@@ -184,19 +178,6 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
                   <option key={a.agent} value={a.agent} disabled={!a.cli}>{a.name}{a.cli ? '' : ' (not installed)'}</option>
                 ))}
               </select>
-            </label>
-            <label>
-              <span>Folder</span>
-              <input
-                list="ai-folders"
-                value={cwd}
-                spellCheck={false}
-                onChange={(e) => setFolder(e.target.value)}
-                placeholder="~/projects/app"
-              />
-              <datalist id="ai-folders">
-                {[...new Set([...(folders?.recent ?? []), ...(folders ? [folders.home] : [])])].map((f) => <option key={f} value={f} />)}
-              </datalist>
             </label>
           </div>
         )}
@@ -417,9 +398,4 @@ function Composer({ api, canvas, status, name, blocked, active, onSend, onStop }
       </div>
     </div>
   );
-}
-
-/** A folder as people read it: under their home as ~. */
-function shortPath(path: string, home?: string): string {
-  return home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path;
 }

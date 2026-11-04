@@ -195,15 +195,9 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   // The AI sidebar: conversations with Claude Code or Codex, which the daemon runs.
   app.get('/api/chats', (c) => c.json(chats.list(c.req.query('canvas'))));
 
-  app.get('/api/chats/folders', (c) => c.json(chats.folders()));
-
   app.post('/api/chats', async (c) => {
-    const { agent, canvas, cwd } = parse(z.object({ agent: AgentId, canvas: Id, cwd: z.string().min(1) }), await c.req.json());
-    try {
-      return c.json(chats.create(agent, canvas, cwd));
-    } catch (e) {
-      throw new HTTPException(400, { message: (e as Error).message });
-    }
+    const { agent, canvas } = parse(z.object({ agent: AgentId, canvas: Id }), await c.req.json());
+    return c.json(chats.create(agent, canvas));
   });
 
   app.get('/api/chats/:id', (c) => {
