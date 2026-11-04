@@ -1,0 +1,42 @@
+{
+  "name": "@exprything/desktop",
+  "productName": "Exprything",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Exprything as a macOS app: the canvas in its own window, with the daemon, CLI and MCP server built in.",
+  "author": "Exprything",
+  "type": "module",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs && electron .",
+    "dist": "node scripts/build.mjs && electron-builder --mac --publish never",
+    "signing-identity": "node scripts/signing-identity.mjs"
+  },
+  "devDependencies": {
+    "@electron/osx-sign": "1.3.3",
+    "@exprything/client": "workspace:*",
+    "@exprything/daemon": "workspace:*",
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0",
+    "esbuild": "0.28.2"
+  },
+  "build": {
+    "appId": "dev.exprything.app",
+    "productName": "Exprything",
+    "directories": { "output": "release" },
+    "files": ["dist/main.cjs", "package.json"],
+    "extraResources": [
+      { "from": "dist/exprything", "to": "exprything" },
+      { "from": "../ui/dist", "to": "exprything/ui" }
+    ],
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.developer-tools",
+      "identity": "-",
+      "sign": "./scripts/sign.mjs",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    }
+  }
+}

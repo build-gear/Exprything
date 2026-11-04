@@ -40,8 +40,9 @@ export class ExpClient {
     return new ExpClient(baseUrl, readFileSync(tokenFile, 'utf8').trim());
   }
 
-  canvasUrl(canvas = 'main'): string {
-    return `${this.baseUrl}/#/c/${canvas}?token=${this.token}`;
+  /** `base` serves the canvas UI: the daemon itself, or a dev server proxying to it. */
+  canvasUrl(canvas = 'main', base = this.baseUrl): string {
+    return `${base}/#/c/${canvas}?token=${this.token}`;
   }
 
   apply(req: ApplyRequestInput & { dryRun: true }): Promise<DryRunResult>;

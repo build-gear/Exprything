@@ -48,6 +48,32 @@ pnpm exp approve commits-daily                        # exec recipes need a one-
 pnpm exp open repo-pulse
 ```
 
+## Desktop app (macOS)
+
+```bash
+pnpm desktop:dist    # packages/desktop/release/: Exprything-<version>-arm64.dmg, and the .app in mac-arm64/
+```
+
+The app shows your canvases in its own window. It attaches to a running daemon, or starts one in the background with your login shell's `PATH`, so exec recipes find the same commands as your terminal. Quitting the app leaves the daemon running and recipes keep refreshing; stop it with `exp daemon stop`.
+
+It carries its own daemon, CLI and MCP server, so it needs no Node install. The first time it finds Claude Code or Codex it connects it, so the agents you run yourself can draw on your canvases too; activity reporting stays off. **Help > Connect an Agent…** opens the AI sidebar's settings, and **Disconnect** there sticks. Agents run Exprything through `~/.exprything/bin/exp`, which the app points at itself whenever it starts, so moving the app does not break them. By hand:
+
+```bash
+claude mcp add --scope user exprything -- ~/.exprything/bin/exp mcp
+```
+
+The build is not notarized, so on another Mac the first launch needs right-click > Open. macOS also asks before Exprything's recipes or AI sidebar read your Desktop, Documents or Downloads folder; until you allow it (System Settings > Privacy & Security > Files and Folders), commands there hang until they time out.
+
+macOS ties that answer to the app's signature. The build is ad-hoc signed by default, and an ad-hoc signature changes with every build, so macOS asks again after each install. To keep your answer across updates, add a signing identity once:
+
+```bash
+pnpm desktop:signing-identity
+```
+
+It puts a self-signed certificate in your login keychain, and `pnpm desktop:dist` signs with it from then on. The first build asks whether `codesign` may use the key: enter your login password and choose Always Allow, or macOS asks again for every file. macOS asks about the folders once more after the switch, then keeps your answer.
+
+`pnpm desktop` runs it from source; with `EXPRYTHING_DESKTOP_URL=http://localhost:5173` it loads the Vite dev server for hot reload.
+
 ## CLI
 
 | Command | |

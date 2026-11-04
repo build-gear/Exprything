@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": { ".": "./src/index.ts", "./shim": "./src/shim.ts" },
   "dependencies": {
     "@exprything/schema": "workspace:*",
     "@hono/node-server": "^2.1.6",

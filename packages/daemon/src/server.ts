@@ -20,7 +20,8 @@ import { Engine } from './engine.ts';
 import { DEFAULT_PORT, paths, readOrCreateToken } from './paths.ts';
 import { Presence } from './presence.ts';
 
-const UI_DIST = resolve(dirname(fileURLToPath(import.meta.url)), '../../ui/dist');
+/** The built canvas UI: next to the sources in a checkout; the desktop app points at its own copy. */
+const UI_DIST = process.env.EXPRYTHING_UI_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../ui/dist');
 const ALLOWED_HOSTS = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/;
 const VERSION = '0.0.1';
 

@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { Command } from 'commander';
 import { ExpClient } from '@exprything/client';
 import {
@@ -11,7 +10,8 @@ import {
 import { runMcpServer } from '@exprything/mcp';
 import { activityCanvas, type AgentIdentity, type AgentStatus } from '@exprything/schema';
 
-const BIN = resolve(dirname(fileURLToPath(import.meta.url)), '../bin/exp.js');
+/** The script running this CLI: bin/exp.js in a checkout, or the bundled CLI inside the desktop app. */
+const BIN = process.argv[1];
 const LAUNCHD_LABEL = 'dev.exprything.daemon';
 const LAUNCHD_PLIST = join(homedir(), 'Library/LaunchAgents', `${LAUNCHD_LABEL}.plist`);
 
@@ -219,6 +219,11 @@ const short = (s: AgentStatus) => (s.agent === 'claude-code' ? 'claude' : s.agen
 const service = program.command('service').description('run the daemon at login (macOS launchd)');
 service.command('install').action(() => {
   if (platform() !== 'darwin') throw new Error('only macOS launchd is supported for now; run `exp daemon start` instead');
+  // Inside the desktop app this CLI runs on the app's own Node; launchd has to start it the same way.
+  const env = ['ELECTRON_RUN_AS_NODE', 'EXPRYTHING_UI_DIST']
+    .filter((k) => process.env[k])
+    .map((k) => `<key>${k}</key><string>${process.env[k]}</string>`)
+    .join('');
   mkdirSync(dirname(LAUNCHD_PLIST), { recursive: true });
   writeFileSync(
     LAUNCHD_PLIST,
@@ -230,7 +235,7 @@ service.command('install').action(() => {
     <string>${process.execPath}</string><string>${BIN}</string><string>daemon</string><string>run</string>
   </array>
   <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
+  <key>KeepAlive</key><true/>${env ? `\n  <key>EnvironmentVariables</key><dict>${env}</dict>` : ''}
   <key>StandardOutPath</key><string>${paths.log}</string>
   <key>StandardErrorPath</key><string>${paths.log}</string>
 </dict></plist>
@@ -245,7 +250,8 @@ service.command('uninstall').action(() => {
   print('uninstalled');
 });
 
-program.parseAsync().catch((e: Error) => {
+// Node's argv layout, also inside the desktop app (Electron run as Node), where Commander would guess Electron's.
+program.parseAsync(process.argv, { from: 'node' }).catch((e: Error) => {
   console.error(`exp: ${e.message}`);
   process.exit(1);
 });

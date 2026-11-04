@@ -8,6 +8,9 @@
     "exp": "node packages/cli/bin/exp.js",
     "dev:ui": "pnpm --filter @exprything/ui dev",
     "build": "pnpm --filter @exprything/ui build",
+    "desktop": "pnpm build && pnpm --filter @exprything/desktop run dev",
+    "desktop:dist": "pnpm build && pnpm --filter @exprything/desktop run dist",
+    "desktop:signing-identity": "pnpm --filter @exprything/desktop run signing-identity",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
