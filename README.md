@@ -100,7 +100,7 @@ The canvas is [Excalidraw](https://github.com/excalidraw/excalidraw): people can
 Widgets stay owned by agent recipes: moving or resizing one pins it, deleting one is undone.
 Until a widget has a value (a new or changed recipe), the whole widget is drawn as a skeleton of its own layout by [Skullet](https://skullet.lochie.me). It shimmers while the recipe runs and holds still under the banner while it waits for approval.
 Agents can read what you select (MCP `canvas_selection`, `exp selection`): widgets by node id, and the shapes, text and arrows you drew, so you can point at something and ask about "this".
-Switch canvases from the menu in the top-left corner; the top-right corner shows the canvas's sources and any that await approval or repair.
+Switch, create and delete canvases from the menu in the top-left corner; the top-right corner shows the canvas's sources and any that await approval or repair. Deleting a canvas also deletes its drawing, its conversations and any sources no other canvas reads, and cannot be undone.
 The Excalidraw renderer is still a spike (see [docs/research/excalidraw.md](docs/research/excalidraw.md), section 10.5).
 
 ### Style

@@ -11,6 +11,11 @@ const KO: Record<string, string> = {
   'Loading…': '불러오는 중…',
   'Loading canvas…': '캔버스 불러오는 중…',
   'Canvas': '캔버스',
+  'New canvas…': '새 캔버스…',
+  'Canvas name': '캔버스 이름',
+  'Delete this canvas…': '이 캔버스 삭제…',
+  'Delete "{title}"? Its widgets, drawings and conversations go with it. This cannot be undone.':
+    '"{title}" 캔버스를 삭제할까요? 위젯과 그림, 대화도 함께 지워지고 되돌릴 수 없어요.',
   'AI sidebar': 'AI 사이드바',
   'AI sidebar (⌘J)': 'AI 사이드바 (⌘J)',
   'Exprything stopped working.': 'Exprything에 문제가 생겼어요.',

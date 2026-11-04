@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { CanvasView } from '@exprything/schema';
 import { AiSidebar, TOGGLE_AI } from './AiSidebar.tsx';
 import { Api, canvasFromHash } from './api.ts';
@@ -124,25 +124,69 @@ function takeAgentsFlag(): boolean {
   return true;
 }
 
-/** Not a canvas id (ids start with a letter or digit): the picker's entry for the AI sidebar. */
+/** Not canvas ids (ids start with a letter or digit): the picker's entries that do something else. */
 const AI_ENTRY = '~ai';
+const NEW_ENTRY = '~new';
+const DELETE_ENTRY = '~delete';
 const AI_OPEN_KEY = 'exprything.ai.open';
 
 /**
- * Switches canvases; drawn over the canvas where Excalidraw's main menu button used to be. Its last
- * entry opens the AI sidebar, which narrow windows have no room for a button for.
+ * Switches, creates and deletes canvases; drawn over the canvas where Excalidraw's main menu button
+ * used to be. Its last entry opens the AI sidebar, which narrow windows have no room for a button for.
  */
 function CanvasPicker({ canvas, canvases }: { canvas: string; canvases: { id: string; title: string }[] }) {
+  const { api } = useContext(CanvasCtx);
+  const [naming, setNaming] = useState(false);
+  const open = (id: string) => { location.hash = `#/c/${id}`; };
+  const failed = (e: Error) => window.alert(tMessage(e.message));
+
+  const create = (title: string) => {
+    setNaming(false);
+    if (title.trim()) api.createCanvas(title.trim()).then((c) => open(c.id), failed);
+  };
+
+  const remove = () => {
+    const at = canvases.findIndex((c) => c.id === canvas);
+    if (!window.confirm(t('Delete "{title}"? Its widgets, drawings and conversations go with it. This cannot be undone.', { title: canvases[at].title }))) return;
+    const next = (canvases[at + 1] ?? canvases[at - 1])?.id ?? 'main';
+    api.deleteCanvas(canvas).then(() => (next === canvas ? location.reload() : open(next)), failed);
+  };
+
   const pick = (value: string) => {
     if (value === AI_ENTRY) window.dispatchEvent(new Event(TOGGLE_AI));
-    else location.hash = `#/c/${value}`;
+    else if (value === NEW_ENTRY) setNaming(true);
+    else if (value === DELETE_ENTRY) remove();
+    else open(value);
   };
+
+  if (naming) {
+    return (
+      <div className="canvas-picker naming">
+        <input
+          autoFocus
+          aria-label={t('Canvas name')}
+          placeholder={t('Canvas name')}
+          maxLength={100}
+          onBlur={() => setNaming(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setNaming(false);
+            // Enter while composing Hangul (or any IME) finishes the syllable; it does not create.
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) create(e.currentTarget.value);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <label className="canvas-picker">
       <select aria-label={t('Canvas')} value={canvas} onChange={(e) => pick(e.target.value)}>
         {[...new Set([canvas, ...canvases.map((c) => c.id)])].map((id) => (
           <option key={id} value={id}>{canvases.find((c) => c.id === id)?.title ?? id}</option>
         ))}
+        <option disabled>──────────</option>
+        <option value={NEW_ENTRY}>{t('New canvas…')}</option>
+        {canvases.some((c) => c.id === canvas) && <option value={DELETE_ENTRY}>{t('Delete this canvas…')}</option>}
         <option disabled>──────────</option>
         <option value={AI_ENTRY}>{t('AI sidebar')}</option>
       </select>

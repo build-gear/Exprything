@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentId, ChatItem, ChatStatus, ChatSummary, SelectionReport, ServerMessage } from '@exprything/schema';
 import { agentCli, agentName, type Cli } from './agents.ts';
@@ -121,6 +121,18 @@ export class Chats {
     for (const run of this.running.values()) run.agent.close();
   }
 
+  /** A deleted canvas takes its conversations with it. The agents keep their own sessions. */
+  removeCanvas(canvas: string): void {
+    for (const chat of this.chats.values()) {
+      if (chat.canvas !== canvas) continue;
+      this.chats.delete(chat.id);
+      this.running.get(chat.id)?.agent.close();
+      clearTimeout(this.saves.get(chat.id));
+      this.saves.delete(chat.id);
+      rmSync(join(paths.chats, `${chat.id}.json`), { force: true });
+    }
+  }
+
   private async start(chat: Chat): Promise<AgentProcess> {
     const run = this.running.get(chat.id);
     if (run) {
@@ -202,7 +214,8 @@ export class Chats {
     clearTimeout(this.saves.get(chat.id));
     this.saves.set(chat.id, setTimeout(() => {
       this.saves.delete(chat.id);
-      writeJsonAtomic(join(paths.chats, `${chat.id}.json`), chat);
+      // An agent closed with its canvas still reports back after the conversation is gone.
+      if (this.chats.has(chat.id)) writeJsonAtomic(join(paths.chats, `${chat.id}.json`), chat);
     }, SAVE_DELAY_MS));
   }
 }

@@ -104,6 +104,14 @@ export class Api {
     return this.call('GET', '/api/canvases');
   }
 
+  createCanvas(title: string): Promise<{ id: string }> {
+    return this.call('POST', '/api/canvases', { title });
+  }
+
+  deleteCanvas(id: string) {
+    return this.call('DELETE', `/api/canvases/${encodeURIComponent(id)}`);
+  }
+
   view(id: string): Promise<CanvasView> {
     return this.call('GET', `/api/canvases/${encodeURIComponent(id)}`);
   }

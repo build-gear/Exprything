@@ -68,6 +68,11 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     c.json(engine.canvases.list().map((cv) => ({ id: cv.id, title: cv.title, nodes: cv.nodes.length, updatedAt: cv.updatedAt }))),
   );
 
+  app.post('/api/canvases', async (c) => {
+    const { title } = parse(z.object({ title: z.string().trim().min(1).max(100) }), await c.req.json());
+    return c.json(engine.createCanvas(title));
+  });
+
   app.get('/api/canvases/:id', async (c) => {
     const view = await engine.view(c.req.param('id'));
     if (!view) throw new HTTPException(404, { message: 'no such canvas' });
@@ -76,7 +81,9 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   });
 
   app.delete('/api/canvases/:id', (c) => {
-    engine.canvases.delete(c.req.param('id'));
+    const id = parse(Id, c.req.param('id'));
+    chats.removeCanvas(id);
+    engine.deleteCanvas(id);
     return c.json({ ok: true });
   });
 

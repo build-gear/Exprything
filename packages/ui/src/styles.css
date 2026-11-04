@@ -93,13 +93,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 /* The canvas switcher sits where Excalidraw's main menu button was. */
 .canvas-picker { position: absolute; top: 16px; left: 16px; z-index: 5; }
-.canvas-picker select {
+.canvas-picker select, .canvas-picker input {
   appearance: none; height: 36px; max-width: 240px; padding: 0 30px 0 12px;
   border: 0; border-radius: 8px; cursor: pointer;
   font: 600 13px/1 var(--font-island); color: var(--island-text);
   background: var(--island); box-shadow: 0 0 0 1px var(--island-ring);
   text-overflow: ellipsis;
 }
+.canvas-picker input { width: 200px; padding: 0 12px; cursor: text; outline: 0; box-shadow: 0 0 0 1px var(--accent); }
+.canvas-picker.naming::after { display: none; }
 /* In Excalidraw's narrow layout its toolbar starts in the top-left corner, so the switcher moves to
    the empty right end of the bottom bar (14px inset, 48px tall). */
 .stage:has(.excalidraw--mobile) > .canvas-picker { top: auto; left: auto; right: 20px; bottom: 20px; }

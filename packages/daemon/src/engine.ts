@@ -58,6 +58,26 @@ export class Engine {
     this.notify({ canvas: canvasId });
   }
 
+  /** A new, empty canvas. Its id comes from its title, as far as the title has what ids can hold. */
+  createCanvas(title: string): Canvas {
+    const base = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 56) || 'canvas';
+    let id = base;
+    for (let n = 2; this.canvases.get(id); n++) id = `${base}-${n}`;
+    const canvas = this.canvases.ensure(id, title);
+    this.canvases.save(canvas);
+    this.notify({ canvas: id });
+    return canvas;
+  }
+
+  /** Deletes a canvas, and the sources only it read: nothing else would ever stop them running. */
+  deleteCanvas(id: string): void {
+    const read = this.canvases.get(id)?.nodes.flatMap((n) => n.source ?? []) ?? [];
+    this.canvases.delete(id);
+    const others = new Set(this.canvases.list().flatMap((c) => c.nodes.map((n) => n.source)));
+    for (const source of new Set(read)) if (!others.has(source)) this.sources.delete(source);
+    this.notify({ canvas: id });
+  }
+
   apply(req: ApplyRequest): ApplyResult {
     this.checkReferences(req);
     // Worked out first: a drawing that cannot be made stops the request before anything changes.
