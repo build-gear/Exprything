@@ -1,4 +1,5 @@
 import type { NodeView, SourceState } from '@exprything/schema';
+import { t } from './i18n.ts';
 
 /** Health of the sources a canvas reads from: how many, and which need a person's attention. */
 export function SourceSummary({ nodes }: { nodes: NodeView[] }) {
@@ -10,9 +11,9 @@ export function SourceSummary({ nodes }: { nodes: NodeView[] }) {
   const approve = count('needs_approval');
   return (
     <div className="summary">
-      {states.size} {states.size === 1 ? 'source' : 'sources'}
-      {approve > 0 && <span className="pill warn">{approve} awaiting approval</span>}
-      {bad > 0 && <span className="pill bad">{bad} need repair</span>}
+      {t(states.size === 1 ? '{n} source' : '{n} sources', { n: states.size })}
+      {approve > 0 && <span className="pill warn">{t('{n} awaiting approval', { n: approve })}</span>}
+      {bad > 0 && <span className="pill bad">{t('{n} need repair', { n: bad })}</span>}
     </div>
   );
 }

@@ -219,6 +219,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   width: 380px; flex: none; min-height: 0; display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
   background: var(--card); border-left: 1px solid var(--border);
 }
+/* Korean wraps at spaces, not inside a word. */
+.ai-sidebar:lang(ko), .wn:lang(ko) { word-break: keep-all; overflow-wrap: break-word; }
 @media (max-width: 720px) {
   .ai-sidebar { position: absolute; inset: 0; z-index: 20; width: auto; border-left: 0; }
 }

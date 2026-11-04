@@ -2,6 +2,7 @@ import { useContext, useEffect, useState, type CSSProperties } from 'react';
 import type { NodeView, SourceState } from '@exprything/schema';
 import { Skeleton } from 'skullet/react';
 import { CanvasCtx } from './context.ts';
+import { t } from './i18n.ts';
 import { fontStack, inkOf, type Look } from './style.ts';
 import { sampleData, widgets } from './widgets/index.tsx';
 
@@ -27,8 +28,8 @@ export function WidgetCard({ view: n, look, active = false }: { view: NodeView; 
 
   const approve = async () => {
     const src = (await api.sources()).find((s) => s.id === n.source);
-    const cmd = src?.cmd ? `\n\n${src.cmd.join(' ')}${src.cwd ? `\n(in ${src.cwd})` : ''}` : '';
-    if (window.confirm(`Allow source "${n.source}" to run on schedule?${cmd}`)) {
+    const cmd = src?.cmd ? `\n\n${src.cmd.join(' ')}${src.cwd ? `\n${t('(in {cwd})', { cwd: src.cwd })}` : ''}` : '';
+    if (window.confirm(`${t('Allow source "{source}" to run on schedule?', { source: n.source! })}${cmd}`)) {
       await api.approve(n.source!);
       reload();
     }
@@ -38,7 +39,7 @@ export function WidgetCard({ view: n, look, active = false }: { view: NodeView; 
     <>
       {st?.status === 'needs_approval' && (
         <div className="wn-banner warn">
-          This recipe runs a command on your machine. <button onClick={approve}>Review & approve</button>
+          {t('This recipe runs a command on your machine.')} <button onClick={approve}>{t('Review & approve')}</button>
         </div>
       )}
       {(n.error || st?.lastError) && <div className="wn-banner bad" title={n.error ?? st?.lastError}>{n.error ?? st?.lastError}</div>}
@@ -50,12 +51,12 @@ export function WidgetCard({ view: n, look, active = false }: { view: NodeView; 
     <div className={className} style={vars}>
       <div className="wn-head">
         <span className={ink ? 'wn-title wn-ink' : 'wn-title'}>{v.title ?? v.id}</span>
-        {v.pinned && <span className="wn-pin" title="Moved by you; agents will not move it">●</span>}
+        {v.pinned && <span className="wn-pin" title={t('Moved by you; agents will not move it')}>●</span>}
         {st && <Freshness state={st} onRefresh={() => api.refresh(st.id).then(reload, reload)} />}
       </div>
       {withBanners && banners}
       <div className="wn-body">
-        {Widget ? <Widget data={v.data} props={v.props} look={look} seedKey={n.id} /> : <div>Unknown widget: {n.type}</div>}
+        {Widget ? <Widget data={v.data} props={v.props} look={look} seedKey={n.id} /> : <div>{t('Unknown widget: {type}', { type: n.type })}</div>}
       </div>
     </div>
   );
@@ -72,7 +73,7 @@ export function WidgetCard({ view: n, look, active = false }: { view: NodeView; 
         id={`${canvas}/${n.id}`}
         data={waiting ? null : n}
         sample={{ ...n, data: sampleData(n.type, n.props) }}
-        label={`Loading ${n.title ?? n.id}`}
+        label={t('Loading {name}', { name: n.title ?? n.id })}
       >
         {(v) => card(v, !waiting)}
       </Skeleton>
@@ -87,11 +88,12 @@ function Freshness({ state, onRefresh }: { state: SourceState; onRefresh: () => 
     return () => clearInterval(t);
   }, []);
   const label =
-    state.status === 'needs_approval' ? 'needs approval'
-      : state.lastSuccessAt ? `${ago(state.lastSuccessAt)}${state.nextRunAt ? ` · next ${until(state.nextRunAt)}` : ''}`
-        : state.status;
+    state.status === 'needs_approval' ? t('needs approval')
+      : !state.lastSuccessAt ? t(state.status)
+        : state.nextRunAt ? t('{ago} · next {until}', { ago: ago(state.lastSuccessAt), until: until(state.nextRunAt) })
+          : ago(state.lastSuccessAt);
   return (
-    <button className="wn-fresh" onClick={onRefresh} title={`${state.status} — click to refresh now`}>
+    <button className="wn-fresh" onClick={onRefresh} title={t('{status} — click to refresh now', { status: t(state.status) })}>
       <span className={`dot ${state.status}`} /> {label}
     </button>
   );
@@ -99,15 +101,15 @@ function Freshness({ state, onRefresh }: { state: SourceState; onRefresh: () => 
 
 function ago(iso: string): string {
   const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60) return t('just now');
+  if (s < 3600) return t('{n}m ago', { n: Math.floor(s / 60) });
+  if (s < 86400) return t('{n}h ago', { n: Math.floor(s / 3600) });
+  return t('{n}d ago', { n: Math.floor(s / 86400) });
 }
 
 function until(iso: string): string {
   const s = Math.max(0, (Date.parse(iso) - Date.now()) / 1000);
-  if (s < 60) return `${Math.ceil(s)}s`;
-  if (s < 3600) return `${Math.round(s / 60)}m`;
-  return `${Math.round(s / 3600)}h`;
+  if (s < 60) return t('{n}s', { n: Math.ceil(s) });
+  if (s < 3600) return t('{n}m', { n: Math.round(s / 60) });
+  return t('{n}h', { n: Math.round(s / 3600) });
 }

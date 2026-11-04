@@ -4,6 +4,7 @@ import { AiSidebar, TOGGLE_AI } from './AiSidebar.tsx';
 import { Api, canvasFromHash } from './api.ts';
 import { CanvasCtx } from './context.ts';
 import { DrawCanvas } from './DrawCanvas.tsx';
+import { t, tMessage } from './i18n.ts';
 
 export function App({ api }: { api: Api }) {
   const [canvas, setCanvas] = useState(canvasFromHash);
@@ -83,8 +84,8 @@ export function App({ api }: { api: Api }) {
   // A canvas no agent has drawn on yet is still a blank canvas people can draw on.
   const missing = error === 'no such canvas';
   let body: React.ReactNode;
-  if (!loaded) body = <div className="empty">Loading…</div>;
-  else if (error && !missing) body = <div className="empty">{error}</div>;
+  if (!loaded) body = <div className="empty">{t('Loading…')}</div>;
+  else if (error && !missing) body = <div className="empty">{tMessage(error)}</div>;
   else body = <DrawCanvas key={canvas} view={view} title={view?.canvas.title ?? canvas} />;
 
   return (
@@ -124,12 +125,12 @@ function CanvasPicker({ canvas, canvases }: { canvas: string; canvases: { id: st
   };
   return (
     <label className="canvas-picker">
-      <select aria-label="Canvas" value={canvas} onChange={(e) => pick(e.target.value)}>
+      <select aria-label={t('Canvas')} value={canvas} onChange={(e) => pick(e.target.value)}>
         {[...new Set([canvas, ...canvases.map((c) => c.id)])].map((id) => (
           <option key={id} value={id}>{canvases.find((c) => c.id === id)?.title ?? id}</option>
         ))}
         <option disabled>──────────</option>
-        <option value={AI_ENTRY}>AI sidebar</option>
+        <option value={AI_ENTRY}>{t('AI sidebar')}</option>
       </select>
     </label>
   );

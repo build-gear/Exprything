@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AgentStatus } from '@exprything/schema';
 import type { Api } from './api.ts';
+import { t, tMessage } from './i18n.ts';
 
 /**
  * The AI sidebar's settings, for the agents' own sessions outside it; the sidebar needs none of this. They
@@ -33,15 +34,14 @@ export function AgentSettings({ api }: { api: Api }) {
   return (
     <div className="ai-settings">
       <p className="ai-muted">
-        This sidebar needs no setup. Connected agents can also draw on your canvases from their own sessions, such as
-        in your terminal.
+        {t('This sidebar needs no setup. Connected agents can also draw on your canvases from their own sessions, such as in your terminal.')}
       </p>
-      {error && <p className="agent-error">{error}</p>}
-      {!agents && !error && <p className="ai-muted">Looking for agents…</p>}
+      {error && <p className="agent-error">{tMessage(error)}</p>}
+      {!agents && !error && <p className="ai-muted">{t('Looking for agents…')}</p>}
       {agents?.map((s) => <Agent key={s.agent} status={s} busy={busy} act={act} api={api} />)}
       <footer className="ai-settings-foot">
-        {agents?.some((a) => a.activity !== 'off') && <a href="#/c/agent-activity">Open agent activity</a>}
-        <span className="ai-muted">Agents pick up changes in their next session.</span>
+        {agents?.some((a) => a.activity !== 'off') && <a href="#/c/agent-activity">{t('Open agent activity')}</a>}
+        <span className="ai-muted">{t('Agents pick up changes in their next session.')}</span>
       </footer>
     </div>
   );
@@ -55,34 +55,34 @@ function Agent({ status: s, busy, act, api }: {
 }) {
   const id = s.agent;
   const label = (key: string, text: string) => (busy === `${id}:${key}` ? '…' : text);
-  const mcp = s.mcp.connected ? (s.mcp.outdated ? 'Connected, with an older setup' : 'Connected') : 'Not connected';
+  const mcp = t(s.mcp.connected ? (s.mcp.outdated ? 'Connected, with an older setup' : 'Connected') : 'Not connected');
   return (
     <div className="agent">
       <div className="agent-name">
         {s.name}
-        <span className="ai-muted">{s.cli ? (s.cli.version ?? '') : 'not found on this computer'}</span>
+        <span className="ai-muted">{s.cli ? (s.cli.version ?? '') : t('not found on this computer')}</span>
       </div>
       <div className="agent-row">
-        <span>Canvas tools</span>
+        <span>{t('Canvas tools')}</span>
         <span className={s.mcp.connected ? 'agent-state on' : 'agent-state'} title={s.mcp.command?.join(' ')}>{mcp}</span>
         {s.mcp.connected && !s.mcp.outdated ? (
-          <button disabled={!!busy} onClick={() => act(`${id}:mcp`, () => api.disconnectAgent(id))}>{label('mcp', 'Disconnect')}</button>
+          <button disabled={!!busy} onClick={() => act(`${id}:mcp`, () => api.disconnectAgent(id))}>{label('mcp', t('Disconnect'))}</button>
         ) : (
           <button disabled={!!busy || !s.cli} onClick={() => act(`${id}:mcp`, () => api.connectAgent(id))}>
-            {label('mcp', s.mcp.outdated ? 'Update' : 'Connect')}
+            {label('mcp', t(s.mcp.outdated ? 'Update' : 'Connect'))}
           </button>
         )}
       </div>
       <div className="agent-row">
-        <span>Activity</span>
+        <span>{t('Activity')}</span>
         <span className={s.activity === 'on' ? 'agent-state on' : 'agent-state'}>
-          {s.activity === 'on' ? 'Reported to the canvas' : s.activity === 'partial' ? 'Partly on' : 'Off'}
+          {t(s.activity === 'on' ? 'Reported to the canvas' : s.activity === 'partial' ? 'Partly on' : 'Off')}
         </span>
         <button disabled={!!busy} onClick={() => act(`${id}:activity`, () => api.setAgentActivity(id, s.activity !== 'on'))}>
-          {label('activity', s.activity === 'on' ? 'Turn off' : 'Turn on')}
+          {label('activity', t(s.activity === 'on' ? 'Turn off' : 'Turn on'))}
         </button>
       </div>
-      {s.notes.map((n) => <p key={n} className="agent-note">{n}</p>)}
+      {s.notes.map((n) => <p key={n} className="agent-note">{tMessage(n)}</p>)}
       {!s.cli && <pre className="agent-manual">{s.manual.join('\n')}</pre>}
     </div>
   );

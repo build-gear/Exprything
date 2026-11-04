@@ -8,6 +8,7 @@ import type { AgentId, AgentStatus, ChatItem, ChatStatus, ChatSummary } from '@e
 import { AGENT_COLORS, OTHER_AGENT_COLOR } from './AgentLayer.tsx';
 import { AgentSettings } from './AgentSettings.tsx';
 import type { Api, ChatEvent } from './api.ts';
+import { t, tMessage, tRich } from './i18n.ts';
 
 /** Opens or closes the sidebar: its button on the canvas, the canvas menu, and ⌘J. */
 export const TOGGLE_AI = 'exprything:ai';
@@ -100,7 +101,7 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
     try {
       let id = chatRef.current;
       if (!id) {
-        if (!chosen) throw new Error('Neither Claude Code nor Codex is installed on this computer.');
+        if (!chosen) throw new Error(t('Neither Claude Code nor Codex is installed on this computer.'));
         const created = await api.createChat(chosen.agent, canvas);
         keep(AGENT_KEY, created.agent);
         setChats((list) => [created, ...(list ?? [])]);
@@ -124,12 +125,12 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
   const name = chat ? agents?.find((a) => a.agent === chat.agent)?.name ?? chat.agent : chosen?.name;
   const color = (name && AGENT_COLORS[name]) ?? OTHER_AGENT_COLOR;
   // Finding the CLIs takes a few seconds right after the daemon starts.
-  const blocked = chat || chosen ? undefined : agents ? 'Install Claude Code or Codex to start' : 'Looking for agents…';
+  const blocked = chat || chosen ? undefined : t(agents ? 'Install Claude Code or Codex to start' : 'Looking for agents…');
 
   return (
     <aside
       className="ai-sidebar"
-      aria-label="AI"
+      aria-label={t('AI sidebar')}
       style={{ '--agent': color } as CSSProperties}
       onKeyDown={(e) => {
         if (e.key !== 'Escape' || e.nativeEvent.isComposing) return;
@@ -140,26 +141,26 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
       <header className="ai-head">
         {settings ? (
           <>
-            <button className="ai-icon" title="Back (Esc)" aria-label="Back" autoFocus onClick={() => onSettings(false)}>←</button>
-            <h2 className="ai-title">Settings</h2>
+            <button className="ai-icon" title={t('Back (Esc)')} aria-label={t('Back')} autoFocus onClick={() => onSettings(false)}>←</button>
+            <h2 className="ai-title">{t('Settings')}</h2>
           </>
         ) : (
           <>
             <span className="ai-dot" aria-hidden />
             <select
               className="ai-history"
-              aria-label="Conversation"
+              aria-label={t('Conversation')}
               value={chatId ?? ''}
               onChange={(e) => { setError(null); setItems([]); setChatId(e.target.value || null); }}
             >
-              <option value="">New conversation</option>
-              {chats?.map((c) => <option key={c.id} value={c.id}>{c.title || 'Untitled'}</option>)}
+              <option value="">{t('New conversation')}</option>
+              {chats?.map((c) => <option key={c.id} value={c.id}>{c.title || t('Untitled')}</option>)}
             </select>
-            <button className="ai-icon" title="New conversation" aria-label="New conversation" onClick={() => { setError(null); setChatId(null); setItems([]); }}>+</button>
-            <button className="ai-icon" title="Settings" aria-label="Settings" onClick={() => onSettings(true)}><SettingsIcon /></button>
+            <button className="ai-icon" title={t('New conversation')} aria-label={t('New conversation')} onClick={() => { setError(null); setChatId(null); setItems([]); }}>+</button>
+            <button className="ai-icon" title={t('Settings')} aria-label={t('Settings')} onClick={() => onSettings(true)}><SettingsIcon /></button>
           </>
         )}
-        <button className="ai-icon" title={settings ? 'Close' : 'Close (Esc)'} aria-label="Close" onClick={onClose}>×</button>
+        <button className="ai-icon" title={t(settings ? 'Close' : 'Close (Esc)')} aria-label={t('Close')} onClick={onClose}>×</button>
       </header>
 
       {settings && <AgentSettings api={api} />}
@@ -171,25 +172,25 @@ export function AiSidebar({ api, canvas, settings, onSettings, onClose }: {
         ) : (
           <div className="ai-setup">
             <label>
-              <span>Agent</span>
+              <span>{t('Agent')}</span>
               <select value={chosen?.agent ?? ''} onChange={(e) => setAgent(e.target.value as AgentId)} disabled={!agents}>
-                {!agents && <option value="">Looking…</option>}
+                {!agents && <option value="">{t('Looking…')}</option>}
                 {agents?.map((a) => (
-                  <option key={a.agent} value={a.agent} disabled={!a.cli}>{a.name}{a.cli ? '' : ' (not installed)'}</option>
+                  <option key={a.agent} value={a.agent} disabled={!a.cli}>{a.cli ? a.name : t('{name} (not installed)', { name: a.name })}</option>
                 ))}
               </select>
             </label>
           </div>
         )}
 
-        <Log items={items} status={status} name={name ?? 'the agent'} empty={!chat} onAnswer={answer} />
+        <Log items={items} status={status} name={name ?? t('the agent')} empty={!chat} onAnswer={answer} />
 
-        {error && <p className="ai-error ai-banner">{error}</p>}
+        {error && <p className="ai-error ai-banner">{tMessage(error)}</p>}
         <Composer
           api={api}
           canvas={canvas}
           status={status}
-          name={name ?? 'the agent'}
+          name={name ?? t('the agent')}
           blocked={blocked}
           active={!settings}
           onSend={send}
@@ -241,11 +242,11 @@ function Log({ items, status, name, empty, onAnswer }: {
     >
       {empty && !items.length && (
         <p className="ai-hint">
-          Ask {name} about this canvas, or to draw on it. Select widgets first and say “this”.
+          {t('Ask {name} about this canvas, or to draw on it. Select something first and say “this”.', { name })}
         </p>
       )}
       {items.map((item) => <Item key={item.id} item={item} name={name} onAnswer={onAnswer} />)}
-      {thinking && <div className="ai-typing" aria-label="Working"><i /><i /><i /></div>}
+      {thinking && <div className="ai-typing" aria-label={t('Working')}><i /><i /><i /></div>}
     </div>
   );
 }
@@ -259,7 +260,7 @@ const Item = memo(function Item({ item, name, onAnswer }: {
     case 'user':
       return (
         <div className="ai-user">
-          {item.context && <span className="ai-chip">{item.context}</span>}
+          {item.context && <span className="ai-chip">{tMessage(item.context)}</span>}
           <p>{item.text}</p>
         </div>
       );
@@ -267,31 +268,31 @@ const Item = memo(function Item({ item, name, onAnswer }: {
       return item.text ? <Markdown text={item.text} /> : null;
     case 'tool':
       return (
-        <div className={`ai-tool ${item.state}`} title={item.summary ? `${item.name}: ${item.summary}` : item.name}>
+        <div className={`ai-tool ${item.state}`} title={item.summary ? `${item.name}: ${tMessage(item.summary)}` : item.name}>
           <span className="ai-tool-dot" aria-hidden />
           <b>{item.name}</b>
-          {item.summary && <code>{item.summary}</code>}
+          {item.summary && <code>{tMessage(item.summary)}</code>}
         </div>
       );
     case 'approval':
       return (
         <div className={`ai-approval ${item.state}`}>
-          <p><b>{name}</b> asks to use <b>{item.tool}</b></p>
-          {item.summary && <code>{item.summary}</code>}
+          <p>{tRich('{name} asks to use {tool}', { name: <b>{name}</b>, tool: <b>{item.tool}</b> })}</p>
+          {item.summary && <code>{tMessage(item.summary)}</code>}
           {item.state === 'pending' ? (
             <div className="ai-approval-actions">
-              <button className="ai-allow" onClick={() => onAnswer(item.id, true)}>Allow</button>
-              <button onClick={() => onAnswer(item.id, false)}>Deny</button>
+              <button className="ai-allow" onClick={() => onAnswer(item.id, true)}>{t('Allow')}</button>
+              <button onClick={() => onAnswer(item.id, false)}>{t('Deny')}</button>
             </div>
           ) : (
-            <p className="ai-approval-state">{{ allowed: 'Allowed', denied: 'Denied', cancelled: 'No longer needed' }[item.state]}</p>
+            <p className="ai-approval-state">{t({ allowed: 'Allowed', denied: 'Denied', cancelled: 'No longer needed' }[item.state])}</p>
           )}
         </div>
       );
     case 'error':
-      return <p className="ai-error">{item.text}</p>;
+      return <p className="ai-error">{tMessage(item.text)}</p>;
     case 'notice':
-      return <p className="ai-hint">{item.text}</p>;
+      return <p className="ai-hint">{tMessage(item.text)}</p>;
   }
 });
 
@@ -330,7 +331,7 @@ function Composer({ api, canvas, status, name, blocked, active, onSend, onStop }
   const selection = report?.canvas === canvas && report.total ? report : undefined;
   const label = selection && (selection.total === 1
     ? selection.nodes[0]?.title ?? selection.nodes[0]?.id ?? selection.drawings[0]?.text ?? selection.drawings[0]?.type
-    : `${selection.total} selected`);
+    : t('{n} selected', { n: selection.total }));
   // A selection the person took off stays off until they select something else.
   const key = selection && JSON.stringify([selection.nodes.map((n) => n.id), selection.drawings.map((d) => d.id)]);
   const attached = !!selection && dropped !== key;
@@ -372,28 +373,28 @@ function Composer({ api, canvas, status, name, blocked, active, onSend, onStop }
           {attached ? (
             <span className="ai-chip">
               {label}
-              <button aria-label="Do not send the selection" onClick={() => setDropped(key ?? null)}>×</button>
+              <button aria-label={t('Do not send the selection')} onClick={() => setDropped(key ?? null)}>×</button>
             </span>
           ) : (
-            <button className="ai-link" onClick={() => setDropped(null)}>Send {label} along</button>
+            <button className="ai-link" onClick={() => setDropped(null)}>{t('Send {label} along', { label: label ?? '' })}</button>
           )}
         </div>
       )}
-      {status === 'waiting' && <p className="ai-hint">{name} is waiting for your answer above.</p>}
+      {status === 'waiting' && <p className="ai-hint">{t('{name} is waiting for your answer above.', { name })}</p>}
       <div className="ai-input">
         <textarea
           ref={field}
           rows={1}
           value={draft}
-          placeholder={blocked ?? `Message ${name}`}
+          placeholder={blocked ?? t('Message {name}', { name })}
           disabled={!!blocked}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
         />
         {busy ? (
-          <button className="ai-send stop" title="Stop" aria-label="Stop" onClick={onStop}>■</button>
+          <button className="ai-send stop" title={t('Stop')} aria-label={t('Stop')} onClick={onStop}>■</button>
         ) : (
-          <button className="ai-send" title="Send (Enter)" aria-label="Send" disabled={!draft.trim() || sending || !!blocked} onClick={() => void submit()}>↑</button>
+          <button className="ai-send" title={t('Send (Enter)')} aria-label={t('Send')} disabled={!draft.trim() || sending || !!blocked} onClick={() => void submit()}>↑</button>
         )}
       </div>
     </div>

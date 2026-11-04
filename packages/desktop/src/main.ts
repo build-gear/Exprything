@@ -2,7 +2,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { app, BrowserWindow, dialog, Menu, nativeTheme, screen, shell } from 'electron';
+import { app, BrowserWindow, dialog, Menu, MenuItem, nativeTheme, screen, shell } from 'electron';
 import { ExpClient } from '@exprything/client';
 import { writeShim } from '@exprything/daemon/shim';
 
@@ -23,6 +23,52 @@ const devUrl = process.env.EXPRYTHING_DESKTOP_URL?.replace(/\/$/, '');
 const installed = app.isPackaged && !resources.includes('/AppTranslocation/');
 
 type WindowState = { canvas?: string; bounds?: Electron.Rectangle };
+type MenuEntry = Electron.MenuItemConstructorOptions;
+
+/** The app's text follows the system's language, as the canvas page does. */
+const korean = () => app.getLocale().startsWith('ko');
+const seeLog = () => (korean() ? `${join(home, 'daemon.log')} 파일을 확인해 주세요.` : `See ${join(home, 'daemon.log')}.`);
+
+/** Korean by each menu item's English label; Electron labels the standard items in English only. */
+const KO_MENU: Record<string, string> = {
+  'About Exprything': 'Exprything에 관하여',
+  Services: '서비스',
+  'Hide Exprything': 'Exprything 가리기',
+  'Hide Others': '기타 가리기',
+  'Show All': '모두 보기',
+  'Quit Exprything': 'Exprything 종료',
+  File: '파일',
+  'Open in Browser': '브라우저에서 열기',
+  'Close Window': '윈도우 닫기',
+  Edit: '편집',
+  Undo: '실행 취소',
+  Redo: '실행 복귀',
+  Cut: '오려두기',
+  Copy: '복사하기',
+  Paste: '붙여넣기',
+  'Paste and Match Style': '붙여넣고 스타일 일치시키기',
+  Delete: '삭제',
+  'Select All': '전체 선택',
+  Substitutions: '대치',
+  'Show Substitutions': '대치 보기',
+  'Smart Quotes': '스마트 따옴표',
+  'Smart Dashes': '스마트 대시',
+  'Text Replacement': '텍스트 대치',
+  Speech: '말하기',
+  'Start Speaking': '말하기 시작',
+  'Stop Speaking': '말하기 중단',
+  View: '보기',
+  Reload: '새로고침',
+  'Toggle Developer Tools': '개발자 도구',
+  'Toggle Full Screen': '전체 화면',
+  Window: '윈도우',
+  Minimize: '최소화',
+  Zoom: '확대/축소',
+  'Bring All to Front': '모두 앞으로 가져오기',
+  Help: '도움말',
+  'Connect an Agent…': '에이전트 연결…',
+  'Show Daemon Log': '데몬 로그 보기',
+};
 
 let client: ExpClient | undefined;
 let win: BrowserWindow | null = null;
@@ -98,7 +144,8 @@ async function openWindow(): Promise<void> {
   w.webContents.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
     if (!isMainFrame || code === -3) return; // -3: replaced by a newer navigation
     if (retries++ >= 3) {
-      dialog.showErrorBox('Exprything could not load the canvas', `${description}\n\nSee ${join(home, 'daemon.log')}.`);
+      const title = korean() ? 'Exprything이 캔버스를 불러오지 못했어요' : 'Exprything could not load the canvas';
+      dialog.showErrorBox(title, `${description}\n\n${seeLog()}`);
       return;
     }
     setTimeout(() => void load(w, canvasOf(url) ?? 'main').catch(() => {}), 1_000);
@@ -159,30 +206,42 @@ function updateShim(): void {
 }
 
 function buildMenu(): void {
-  Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      { role: 'appMenu' },
-      {
-        label: 'File',
-        submenu: [
-          { label: 'Open in Browser', accelerator: 'CmdOrCtrl+Shift+B', click: () => void openInBrowser() },
-          { type: 'separator' },
-          { role: 'close' },
-        ],
-      },
-      { role: 'editMenu' },
-      { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
-      { role: 'windowMenu' },
-      {
-        role: 'help',
-        submenu: [
-          { label: 'Connect an Agent…', click: () => void showAgents() },
-          { label: 'Show Daemon Log', click: () => void shell.openPath(join(home, 'daemon.log')) },
-        ],
-      },
-    ]),
-  );
+  const template: MenuEntry[] = [
+    { role: 'appMenu' },
+    {
+      label: 'File',
+      submenu: [
+        { label: 'Open in Browser', accelerator: 'CmdOrCtrl+Shift+B', click: () => void openInBrowser() },
+        { type: 'separator' },
+        { role: 'close' },
+      ],
+    },
+    { role: 'editMenu' },
+    { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
+    { role: 'windowMenu' },
+    {
+      role: 'help',
+      submenu: [
+        { label: 'Connect an Agent…', click: () => void showAgents() },
+        { label: 'Show Daemon Log', click: () => void shell.openPath(join(home, 'daemon.log')) },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(korean() ? template.map(inKorean) : template));
 }
+
+/** A menu entry with its label and its items' in Korean. A role's own items are read from Electron and spelled out. */
+function inKorean(entry: MenuEntry): MenuEntry {
+  if (entry.type === 'separator') return entry;
+  const { label, submenu } = new MenuItem(entry);
+  const items = Array.isArray(entry.submenu) ? entry.submenu : submenu?.items.map(entryOf);
+  return { ...entry, label: KO_MENU[label] ?? label, ...(items && { submenu: items.map(inKorean) }) };
+}
+
+const entryOf = (item: Electron.MenuItem): MenuEntry =>
+  item.type === 'separator'
+    ? { type: 'separator' }
+    : { role: item.role as MenuEntry['role'], label: item.label, submenu: item.submenu?.items.map(entryOf) };
 
 const stateFile = () => join(app.getPath('userData'), 'window.json');
 
@@ -230,7 +289,7 @@ if (!app.requestSingleInstanceLock()) {
       if (installed && !process.env.EXPRYTHING_HOME) void client?.connectNewAgents().catch(() => {});
     })
     .catch((e: Error) => {
-      dialog.showErrorBox('Exprything could not start', `${e.message}\n\nSee ${join(home, 'daemon.log')}.`);
+      dialog.showErrorBox(korean() ? 'Exprything을 시작하지 못했어요' : 'Exprything could not start', `${e.message}\n\n${seeLog()}`);
       app.quit();
     });
 }

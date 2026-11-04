@@ -13,6 +13,7 @@ import type {
 import { CanvasCtx } from './context.ts';
 import { AgentLayer, ZONE_PADDING, type Zone } from './AgentLayer.tsx';
 import { TOGGLE_AI } from './AiSidebar.tsx';
+import { langCode, t } from './i18n.ts';
 import { SourceSummary } from './SourceSummary.tsx';
 import { frameDiff, frameOf, frameOfElement, resolveLook, sameFrame, type Frame, type Look } from './style.ts';
 import { WidgetCard } from './WidgetCard.tsx';
@@ -81,7 +82,6 @@ class WidgetUiStore {
 
 const UiCtx = createContext<WidgetUiStore>(new WidgetUiStore());
 
-const langCode = navigator.language.toLowerCase().startsWith('ko') ? 'ko-KR' : 'en';
 const uiOptions = { canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false } };
 
 function nodeIdOfElementId(id: string): string | undefined {
@@ -374,12 +374,12 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
       const id = widgetNodeId(el);
       if (!id) {
         if (!isWidgetEmbed(el) || el.isDeleted) return el;
-        toast = 'Widgets cannot be copied. Ask the agent for another one.';
+        toast = t('Widgets cannot be copied. Ask the agent for another one.');
         return newElementWith(el, { isDeleted: true });
       }
       if (!current.has(id)) return el;
       if (el.isDeleted) {
-        toast = 'Widgets belong to agent recipes. Remove them through the agent or `exp apply`.';
+        toast = t('Widgets belong to agent recipes. Remove them through the agent or `exp apply`.');
         return newElementWith(el, { isDeleted: false });
       }
       const rect = rectOfElement(el);
@@ -572,7 +572,7 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
       const agent = refuse(e);
       if (!agent) return;
       refusedPointer = e.pointerId;
-      excalidraw.setToast({ message: `${agent.name} is editing this. You can use it again when it finishes.`, duration: 3000 });
+      excalidraw.setToast({ message: t('{name} is editing this. You can use it again when it finishes.', { name: agent.name }), duration: 3000 });
     };
     // A pointer up with no pointer down would still follow a link under the pointer.
     const onPointerUp = (e: PointerEvent) => {
@@ -686,7 +686,7 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     [initial],
   );
 
-  if (!initialData) return <div className="empty">Loading canvas…</div>;
+  if (!initialData) return <div className="empty">{t('Loading canvas…')}</div>;
 
   return (
     <ViewsCtx.Provider value={nodes}>
@@ -746,7 +746,7 @@ function CanvasSources() {
   return (
     <div className="top-right">
       <SourceSummary nodes={[...nodes.values()]} />
-      <button className="island-button" title="AI sidebar (⌘J)" onClick={() => window.dispatchEvent(new Event(TOGGLE_AI))}>AI</button>
+      <button className="island-button" title={t('AI sidebar (⌘J)')} onClick={() => window.dispatchEvent(new Event(TOGGLE_AI))}>AI</button>
     </div>
   );
 }
