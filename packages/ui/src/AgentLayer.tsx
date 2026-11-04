@@ -1,5 +1,5 @@
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { AgentPresence, AgentTarget } from '@exprything/schema';
 
@@ -22,7 +22,11 @@ export const OTHER_AGENT_COLOR = '#1971c2';
 interface SceneProps {
   excalidraw: ExcalidrawImperativeAPI;
   zoneOf: (target: AgentTarget) => Zone;
-  /** Calls back when the canvas pans or zooms, or something on it moves. */
+  /**
+   * Calls back when the canvas pans or zooms, or something on it moves. Excalidraw can report that
+   * in the very commit that removes a listener's element, after its ref is cleared, so listeners
+   * subscribe in a layout effect: that cleanup comes before the report, and a passive one after it.
+   */
   subscribeScene: (listener: () => void) => () => void;
 }
 
@@ -47,7 +51,7 @@ export function AgentLayer({ agents, root, ...scene }: SceneProps & { agents: Ag
 function AgentZone({ target, excalidraw, zoneOf, subscribeScene }: SceneProps & { target: AgentTarget }) {
   const box = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const place = () => {
       const zone = zoneOf(target);
       const { scrollX, scrollY, zoom } = excalidraw.getAppState();
@@ -80,7 +84,7 @@ function AgentCursor({ agent, excalidraw, zoneOf, subscribeScene }: SceneProps &
     return () => clearInterval(timer);
   }, [count]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const place = () => {
       const { scrollX, scrollY, zoom, width, height } = excalidraw.getAppState();
       const el = box.current!;
