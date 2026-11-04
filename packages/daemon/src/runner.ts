@@ -84,13 +84,14 @@ function runCommand(cmd: string[], cwd: string | undefined, timeoutMs: number): 
   });
 }
 
-/** Fetch and parse a source's raw data. Push sources pass their buffer in. */
-export async function fetchRaw(source: Source, pushBuffer: unknown[] = []): Promise<unknown> {
+/** Fetch and parse a source's raw data. Push sources pass their buffer in, agent sources their events. */
+export async function fetchRaw(source: Source, input: unknown[] = []): Promise<unknown> {
   switch (source.kind) {
     case 'static':
       return source.data;
     case 'push':
-      return pushBuffer;
+    case 'agent':
+      return input;
     case 'exec':
       return parseOutput(await runCommand(source.cmd, source.cwd, source.timeoutMs), source.parse);
     case 'file':
@@ -98,8 +99,8 @@ export async function fetchRaw(source: Source, pushBuffer: unknown[] = []): Prom
   }
 }
 
-export async function runSource(source: Source, pushBuffer?: unknown[]): Promise<unknown> {
-  const raw = await fetchRaw(source, pushBuffer);
+export async function runSource(source: Source, input?: unknown[]): Promise<unknown> {
+  const raw = await fetchRaw(source, input);
   const value = await applyTransform(source.transform, raw);
   // JSONata returns special sequence arrays; normalize to plain JSON.
   return value === undefined ? null : JSON.parse(JSON.stringify(value));

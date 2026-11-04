@@ -9,9 +9,12 @@ import { HTTPException } from 'hono/http-exception';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { z } from 'zod';
 import {
-  ApplyRequest, CanvasDrawing, Id, NodeStyle, SelectionReport, authoringGuide, stylePalette, widgetCatalog,
+  AgentEvent, ApplyRequest, CanvasDrawing, Id, NodeStyle, SelectionReport, authoringGuide, stylePalette, widgetCatalog,
   type CanvasSelection, type StoredNode,
 } from '@exprything/schema';
+import {
+  AGENT_IDS, agentStatus, connectAgent, connectNewAgents, disconnectAgent, parseAgent, setAgentActivity,
+} from './agents.ts';
 import { Engine } from './engine.ts';
 import { DEFAULT_PORT, paths, readOrCreateToken } from './paths.ts';
 
@@ -147,6 +150,33 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     return c.json(latest ?? ({ canvas: canvas ?? null, open: false, nodes: [], drawings: [], total: 0 } satisfies CanvasSelection));
   });
 
+  // Agents' hooks, through `exp hook`.
+  app.post('/api/agent-events', async (c) => {
+    const { events } = parse(z.object({ events: z.array(AgentEvent).max(1_000) }), await c.req.json());
+    return c.json({ ok: true, stored: engine.recordAgentEvents(events) });
+  });
+
+  // Connecting Claude Code and Codex from the AI sidebar's settings: the same as `exp connect`.
+  app.get('/api/agents', async (c) => c.json(await Promise.all(AGENT_IDS.map(agentStatus))));
+
+  app.post('/api/agents/connect-new', async (c) => c.json({ connected: await connectNewAgents() }));
+
+  app.post('/api/agents/:agent/connect', async (c) => {
+    const { activity } = parse(z.object({ activity: z.boolean().optional() }), await c.req.json().catch(() => ({})));
+    const status = await wrapValue(() => connectAgent(parseAgent(c.req.param('agent')), { activity }));
+    return c.json({ ...status, activityCanvas: activity ? engine.ensureActivityCanvas() : undefined });
+  });
+
+  app.post('/api/agents/:agent/activity', async (c) => {
+    const { on } = parse(z.object({ on: z.boolean() }), await c.req.json());
+    const status = await wrapValue(() => setAgentActivity(parseAgent(c.req.param('agent')), on));
+    return c.json({ ...status, activityCanvas: on ? engine.ensureActivityCanvas() : undefined });
+  });
+
+  app.post('/api/agents/:agent/disconnect', async (c) =>
+    c.json(await wrapValue(() => disconnectAgent(parseAgent(c.req.param('agent'))))),
+  );
+
   if (existsSync(UI_DIST)) {
     app.use('/*', serveStatic({ root: UI_DIST }));
   } else {
@@ -222,6 +252,14 @@ function parseJson(text: string): unknown {
     return JSON.parse(text);
   } catch {
     return undefined;
+  }
+}
+
+async function wrapValue<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    throw new HTTPException(400, { message: (e as Error).message });
   }
 }
 

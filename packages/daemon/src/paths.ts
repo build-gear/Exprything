@@ -18,6 +18,12 @@ export const paths = {
   get token() { return join(homeDir(), 'token'); },
   get daemon() { return join(homeDir(), 'daemon.json'); },
   get log() { return join(homeDir(), 'daemon.log'); },
+  /** Agent events a hook could not deliver while the daemon was down; the daemon reads them when it starts. */
+  get spool() { return join(homeDir(), 'agent-events.spool.jsonl'); },
+  /** The exp that agents run (see shim.ts). */
+  get shim() { return join(homeDir(), 'bin', 'exp'); },
+  /** The agents the desktop app no longer connects by itself: connected once, or disconnected. */
+  get agentsSeen() { return join(homeDir(), 'agents-seen.json'); },
 };
 
 export function expandHome(p: string): string {

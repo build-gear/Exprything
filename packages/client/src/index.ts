@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type {
-  ApplyRequestInput, ApplyResult, CanvasSelection, CanvasView, DryRunResult, SourceState,
+  AgentId, ApplyRequestInput, ApplyResult, CanvasSelection, CanvasView, DryRunResult, SourceState,
 } from '@exprything/schema';
 
 const DEFAULT_PORT = 7717;
@@ -86,6 +86,11 @@ export class ExpClient {
 
   catalog(): Promise<{ guide: string; widgets: Record<string, unknown>; sources: unknown }> {
     return this.call('GET', '/api/catalog');
+  }
+
+  /** Connects the agents found for the first time; the desktop app does this when it starts. */
+  connectNewAgents(): Promise<{ connected: AgentId[] }> {
+    return this.call('POST', '/api/agents/connect-new');
   }
 
   private async call<T>(method: string, path: string, body?: unknown): Promise<T> {

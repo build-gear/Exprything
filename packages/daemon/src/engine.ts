@@ -1,6 +1,9 @@
-import type {
-  ApplyRequest, ApplyResult, CanvasView, DryRunResult, NodeView, Source, StoredNode,
+import {
+  ApplyRequest, activityCanvas,
+  type AgentEvent, type AgentTarget, type ApplyResult, type Canvas, type CanvasView, type DryRunResult, type NodeView,
+  type Source, type StoredNode,
 } from '@exprything/schema';
+import { ActivityLog } from './activity.ts';
 import { CanvasStore } from './canvases.ts';
 import { History } from './history.ts';
 import { ensureHome, paths } from './paths.ts';
@@ -11,18 +14,34 @@ const SAMPLE_LIMIT = 2_000;
 
 export class Engine {
   readonly history: History;
+  readonly activity: ActivityLog;
   readonly sources: SourceManager;
   readonly canvases: CanvasStore;
 
   constructor(private notify: (msg: { canvas?: string; source?: string }) => void, private baseUrl: () => string) {
     ensureHome();
     this.history = new History(paths.history);
+    this.activity = new ActivityLog(paths.history);
     this.canvases = new CanvasStore();
-    this.sources = new SourceManager(this.history, (source) => this.notify({ source }));
+    this.sources = new SourceManager(this.history, this.activity, (source) => this.notify({ source }));
   }
 
   start(): void {
+    this.activity.replaySpool();
     this.sources.start();
+  }
+
+  /** Events from agents' hooks (`exp hook`), and any the spool kept while the daemon was down. */
+  recordAgentEvents(events: AgentEvent[]): number {
+    const n = this.activity.add(events) + this.activity.replaySpool();
+    if (n) this.sources.activityChanged();
+    return n;
+  }
+
+  /** Sets up the agent-activity canvas, unless it is already there (a person may have changed it). */
+  ensureActivityCanvas(): string {
+    if (!this.canvases.get(activityCanvas.canvas)) this.apply(ApplyRequest.parse(activityCanvas));
+    return `${this.baseUrl()}/#/c/${activityCanvas.canvas}`;
   }
 
   stop(): void {
@@ -79,7 +98,7 @@ export class Engine {
       else if (!pending.has(id)) res = { ok: true, value: this.sources.value(id) };
       else {
         try {
-          res = { ok: true, value: await runSource(src, src.kind === 'push' ? [] : undefined) };
+          res = { ok: true, value: await runSource(src, src.kind === 'push' ? [] : this.sources.input(src)) };
         } catch (e) {
           res = { ok: false, error: (e as Error).message };
         }

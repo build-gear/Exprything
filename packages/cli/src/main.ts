@@ -5,8 +5,11 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { ExpClient } from '@exprything/client';
-import { paths, startDaemon, type DaemonInfo } from '@exprything/daemon';
+import {
+  AGENT_IDS, agentStatus, connectAgent, disconnectAgent, forwardHook, parseAgent, paths, startDaemon, type DaemonInfo,
+} from '@exprything/daemon';
 import { runMcpServer } from '@exprything/mcp';
+import { activityCanvas, type AgentIdentity, type AgentStatus } from '@exprything/schema';
 
 const BIN = resolve(dirname(fileURLToPath(import.meta.url)), '../bin/exp.js');
 const LAUNCHD_LABEL = 'dev.exprything.daemon';
@@ -136,6 +139,69 @@ program
 program.command('mcp').description('run the MCP server over stdio (for Claude Code / Codex)').action(async () => {
   await runMcpServer(await connect());
 });
+
+program
+  .command('connect [agents...]')
+  .description('let Claude Code (claude) and Codex (codex) draw on your canvases; with no agent, show how they are connected')
+  .option('--activity', 'also show what the agent does, on the agent-activity canvas (installs its hooks)')
+  .option('--no-activity', 'stop sending what the agent does (removes its hooks)')
+  .option('--json', 'print JSON')
+  .action(async (names: string[], opts: { activity?: boolean; json?: boolean }) => {
+    if (!names.length) return printAgents(await Promise.all(AGENT_IDS.map(agentStatus)), opts.json);
+    const statuses: AgentStatus[] = [];
+    for (const id of names.map(parseAgent)) statuses.push(await connectAgent(id, { activity: opts.activity }));
+    let activityUrl: string | undefined;
+    if (opts.activity) {
+      const c = await connect();
+      // Set it up once; a person may have changed it since.
+      await c.canvas(activityCanvas.canvas).catch(() => c.apply(activityCanvas));
+      activityUrl = c.canvasUrl(activityCanvas.canvas);
+    }
+    if (opts.json) return print({ agents: statuses, activityCanvas: activityUrl });
+    printAgents(statuses);
+    if (activityUrl) print(`\nAgent activity: exp open ${activityCanvas.canvas}`);
+    print('\nStart a new agent session to pick up the change.');
+  });
+
+program
+  .command('disconnect <agents...>')
+  .description('remove Exprything from Claude Code (claude) or Codex (codex): its MCP server and activity hooks')
+  .option('--json', 'print JSON')
+  .action(async (names: string[], opts: { json?: boolean }) => {
+    const statuses: AgentStatus[] = [];
+    for (const id of names.map(parseAgent)) statuses.push(await disconnectAgent(id));
+    printAgents(statuses, opts.json);
+  });
+
+// Run by the agents' hooks (exp connect --activity): never prints, never fails.
+program
+  .command('hook', { hidden: true })
+  .requiredOption('--agent <agent>')
+  .action(async (opts: { agent: string }) => {
+    const receivedAt = new Date().toISOString();
+    try {
+      await forwardHook(parseAgent(opts.agent), await readStdin(), receivedAt);
+    } catch {
+      // An agent must never see a failing hook from us.
+    }
+    // Idle keep-alive sockets would hold the agent's hook open a few seconds longer.
+    process.exit(0);
+  });
+
+function printAgents(statuses: AgentStatus[], json?: boolean): void {
+  if (json) return print(statuses);
+  for (const s of statuses) {
+    print(`${s.name}${s.cli?.version ? ` ${s.cli.version}` : ''}${s.cli ? `  (${s.cli.path})` : '  (not found)'}`);
+    const mcp = s.mcp.connected
+      ? `connected (${s.mcp.scope} scope)${s.mcp.outdated ? `, runs ${s.mcp.command?.join(' ')}: \`exp connect ${short(s)}\` updates it` : ''}`
+      : `not connected: exp connect ${short(s)}`;
+    print(`  MCP       ${mcp}`);
+    print(`  activity  ${s.activity}${s.activity === 'off' ? ` (exp connect ${short(s)} --activity)` : ''}`);
+    for (const n of s.notes) print(`  ! ${n}`);
+  }
+}
+
+const short = (s: AgentStatus) => (s.agent === 'claude-code' ? 'claude' : s.agent);
 
 const service = program.command('service').description('run the daemon at login (macOS launchd)');
 service.command('install').action(() => {

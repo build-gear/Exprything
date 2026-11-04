@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { watch, type FSWatcher } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { parseDuration, type Source, type SourceState } from '@exprything/schema';
+import type { ActivityLog } from './activity.ts';
 import type { History } from './history.ts';
 import { expandHome, paths, readJson, writeJsonAtomic } from './paths.ts';
 import { runSource } from './runner.ts';
@@ -23,14 +24,17 @@ interface SourcesFile {
 
 const DEFAULT_KEEP = '30d';
 const MIN_INTERVAL_MS = 5_000;
+/** Agent events come in bursts (a tool call is two); their sources re-run once per burst. */
+const ACTIVITY_DEBOUNCE_MS = 250;
 
 /** Owns source recipes and runs them on schedule, with no AI involved. */
 export class SourceManager {
   private specs = new Map<string, Source>();
   private approvals: Record<string, string>;
   private rt = new Map<string, Runtime>();
+  private activityTimer?: NodeJS.Timeout;
 
-  constructor(private history: History, private onChange: (sourceId: string) => void) {
+  constructor(private history: History, private activity: ActivityLog, private onChange: (sourceId: string) => void) {
     const file = readJson<SourcesFile>(paths.sources, { sources: [], approvals: {} });
     for (const s of file.sources) this.specs.set(s.id, s);
     this.approvals = file.approvals;
@@ -41,6 +45,7 @@ export class SourceManager {
   }
 
   stop(): void {
+    clearTimeout(this.activityTimer);
     for (const id of this.rt.keys()) this.halt(id);
   }
 
@@ -105,6 +110,21 @@ export class SourceManager {
     const prev = mode === 'append' ? this.pushBuffer(id) : [];
     this.history.setKv(`push:${id}`, [...prev, ...items].slice(-src.maxItems));
     await this.run(id);
+  }
+
+  /** New agent events arrived: re-run the agent sources. */
+  activityChanged(): void {
+    clearTimeout(this.activityTimer);
+    this.activityTimer = setTimeout(() => {
+      for (const src of this.specs.values()) if (src.kind === 'agent') void this.run(src.id);
+    }, ACTIVITY_DEBOUNCE_MS);
+  }
+
+  /** What a source runs on besides its recipe: a push source's buffer, an agent source's events. */
+  input(src: Source): unknown[] | undefined {
+    if (src.kind === 'push') return this.pushBuffer(src.id);
+    if (src.kind === 'agent') return this.activity.query(src);
+    return undefined;
   }
 
   state(id: string): SourceState | undefined {
@@ -214,12 +234,15 @@ export class SourceManager {
     r.state.lastRunAt = new Date().toISOString();
 
     try {
-      const value = await runSource(src, src.kind === 'push' ? this.pushBuffer(id) : undefined);
+      const value = await runSource(src, this.input(src));
       if (this.specs.get(id) !== src) return; // replaced while running
       r.value = value;
       r.state = { ...r.state, status: 'fresh', failures: 0, lastError: undefined, lastSuccessAt: new Date().toISOString() };
-      this.history.record(id, value);
-      this.history.prune(id, parseDuration(src.history?.keep ?? DEFAULT_KEEP));
+      // An agent source's value is a window on the event log, which keeps its own history.
+      if (src.kind !== 'agent') {
+        this.history.record(id, value);
+        this.history.prune(id, parseDuration(src.history?.keep ?? DEFAULT_KEEP));
+      }
     } catch (e) {
       if (this.specs.get(id) !== src) return;
       r.state = { ...r.state, status: 'error', failures: r.state.failures + 1, lastError: (e as Error).message };

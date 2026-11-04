@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { AgentEventKind, AgentId, type AgentPresence } from './agents.ts';
 
 export * from './catalog.ts';
+export * from './agents.ts';
 
 // ---------- primitives ----------
 
@@ -72,7 +74,21 @@ export const FileSource = z.object({
   parse: ParseMode.default('json'),
 });
 
-export const Source = z.discriminatedUnion('kind', [StaticSource, PushSource, ExecSource, FileSource]);
+export const AgentSource = z.object({
+  ...sourceBase,
+  kind: z.literal('agent'),
+  view: z
+    .enum(['events', 'sessions'])
+    .default('events')
+    .describe('"events": what connected agents did, oldest first. "sessions": one row per agent session, newest first, with its state (working, waiting, idle, ended)'),
+  agents: z.array(AgentId).optional().describe('only these agents'),
+  kinds: z.array(AgentEventKind).optional().describe('events view: only these kinds of event'),
+  cwd: z.string().optional().describe('only what agents did in this directory or below it; ~ is expanded'),
+  since: Duration.default('1d').describe('how far back to look, e.g. "1h" or "7d"; events are kept 30 days'),
+  limit: z.number().int().positive().max(10_000).default(500).describe('how many of the most recent events, or sessions, to return'),
+});
+
+export const Source = z.discriminatedUnion('kind', [StaticSource, PushSource, ExecSource, FileSource, AgentSource]);
 export type Source = z.infer<typeof Source>;
 export type SourceInput = z.input<typeof Source>;
 

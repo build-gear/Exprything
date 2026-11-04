@@ -94,4 +94,6 @@ Author recipes, not results:
   Keep fills (hachure, cross-hatch) for stat and markdown widgets; they make charts and tables hard to read.
 - Style fields a person changed on the canvas stay as they set them; your updates do not override those.
 - When the person says "this" or "these", call canvas_selection: it lists the widgets (node ids) and the shapes,
-  text and arrows they have selected on the canvas open in their browser.`;
+  text and arrows they have selected on the canvas open in their browser.
+- Sources of kind "agent" read what connected coding agents did (after \`exp connect <agent> --activity\`): recent
+  events, or one row per session with its state (view "sessions"). The "agent-activity" canvas is built on them.`;

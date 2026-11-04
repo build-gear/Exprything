@@ -17,15 +17,17 @@ pnpm build          # builds the canvas UI the daemon serves
 pnpm exp open       # starts the daemon in the background and opens the canvas
 ```
 
-Connect an agent (the MCP server starts the daemon if needed):
+Connect an agent (its MCP server starts the daemon when needed):
 
 ```bash
-claude mcp add exprything -- node /absolute/path/to/Exprything/packages/cli/bin/exp.js mcp
+pnpm exp connect claude     # Claude Code
 ```
 
 ```bash
-codex mcp add exprything -- node /absolute/path/to/Exprything/packages/cli/bin/exp.js mcp
+pnpm exp connect codex      # Codex
 ```
+
+This registers Exprything through the agent's own CLI (`claude mcp add-json --scope user`, `codex mcp add`), for every project. Add `--activity` to also see what the agent does (see [Agent activity](#agent-activity)); `pnpm exp connect` alone shows what is connected. The **Agents** button on the canvas does the same. New agent sessions pick up the change.
 
 Then ask, for example: *"Draw a repo pulse canvas for this repo: commits per day, TODO count trend, recent commits."*
 
@@ -57,6 +59,8 @@ pnpm exp open repo-pulse
 | `exp approve <source>` | allow an exec source to run on schedule |
 | `exp refresh <source>` | run a source now |
 | `exp selection [canvas]` | what you have selected on an open canvas (by default the one you used last), as agents see it |
+| `exp connect [claude\|codex] [--activity\|--no-activity]` | connect Claude Code or Codex (MCP server, and optionally activity hooks); with no agent, show what is connected |
+| `exp disconnect <claude\|codex>` | remove Exprything from an agent: its MCP server and activity hooks |
 | `exp catalog` | widget catalog and authoring guide |
 | `exp daemon start\|stop\|run` | manage the daemon |
 | `exp service install\|uninstall` | run the daemon at login (launchd) |
@@ -88,6 +92,16 @@ Widgets can look like Excalidraw shapes. `style` uses Excalidraw's element prope
 - `fontFamily` (`hand`, `normal`, `code`) and `strokeColor` restyle the widget's content; with `roughness` above 0, bar and line charts are drawn by hand with rough.js.
 - People can restyle a widget's frame from Excalidraw's style panel. Fields they change are pinned and agent updates keep them.
 - `exp catalog` (MCP `catalog_get`) lists the fields and Excalidraw's palette.
+
+## Agent activity
+
+`exp connect claude --activity` (or **Turn on** in the AI sidebar's settings) adds hooks to Claude Code (`~/.claude/settings.json`) or Codex (`~/.codex/hooks.json`) that report what the agent does: sessions starting and ending, prompts, tool calls and their results, approval requests, and Codex's token counts. The `agent-activity` canvas shows the sessions that are working or waiting for you, the tools they use, and a timeline.
+
+- Only what a monitor needs leaves the hook: a tool's name and what it worked on (a command's first line, a file path, a pattern or URL), whether it succeeded and how long it took, a prompt's length. Prompts, file contents, tool output and transcripts stay with the agent.
+- Hooks run in the background, print nothing and always succeed, and never start the daemon. Events from while it was down wait in `~/.exprything/agent-events.spool.jsonl` until it starts. Events are kept 30 days.
+- Codex runs new hooks only after you trust them: open `/hooks` in Codex.
+- Recipes can read the events too: a source of kind `agent` gives recent events, or one row per session with its state (`"view": "sessions"`).
+- `EXPRYTHING_ACTIVITY=off` silences the hooks in one shell; `exp connect claude --no-activity` removes them.
 
 ## Layout
 

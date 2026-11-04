@@ -103,7 +103,7 @@ flowchart LR
   CC --> MCP
   CX --> MCP
   CC -. hooks .-> HOOK
-  CX -. notify/hooks .-> HOOK
+  CX -. hooks .-> HOOK
   SH --> CLI
   MCP --> API
   CLI --> API
@@ -119,7 +119,7 @@ flowchart LR
 - **exprythingd (데몬)**: 모든 상태의 주인. 127.0.0.1 바인딩 + 토큰 인증. 캔버스 상태, 소스 실행, 이벤트 버스, 시크릿 관리.
 - **exp-mcp**: stdio MCP 서버. 로직 없음 — 데몬 API의 얇은 래퍼. 데몬이 없으면 자동 기동.
 - **exp CLI**: 같은 API의 CLI 표면. 파이프 친화적(`curl ... | exp push sales`). MCP를 못 쓰는 환경/스크립트/CI용.
-- **Hook 어댑터**: Claude Code hooks, Codex notify 이벤트를 표준 `AgentEvent`로 정규화해 데몬에 전송.
+- **Hook 어댑터**: Claude Code·Codex hooks 이벤트를 표준 `AgentEvent`로 정규화해 데몬에 전송(`exp hook`).
 - **Canvas UI**: 렌더러. WebSocket으로 상태 diff를 구독. 사용자 조작(이동, 클릭, 입력)은 op/event로 데몬에 전송.
 
 > **왜 MCP 서버가 직접 상태를 갖지 않나?** MCP 서버는 에이전트 세션마다 하나씩 뜬다.
@@ -258,7 +258,7 @@ exp apply -f dashboard.json            # MCP canvas_apply와 동일
 exp push build-log --append < out.txt  # 파이프로 데이터 주입
 exp events --follow --kind ui.action   # 이벤트 tail (스크립트에서 대기용)
 exp wait deploy-approve                # 특정 action 응답까지 블로킹, 결과를 stdout
-exp hooks install claude|codex         # 에이전트 감시 훅 설치
+exp connect claude|codex --activity    # MCP 등록 + 에이전트 감시 훅 설치
 exp service install                    # 데몬을 launchd/systemd 서비스로 등록 (로그인 시 자동 기동)
 exp status                             # 모든 소스의 신선도/다음 갱신/에러 요약
 exp doctor                             # repair 큐 확인
@@ -268,9 +268,9 @@ exp secret set GITHUB_TOKEN            # 키체인에 저장
 CLI와 MCP는 **동일한 op 스키마**를 공유 → 에이전트가 MCP를 못 쓰는 상황에서도 `exp apply`로 같은 결과.
 
 ### 5.3 에이전트 감시 (Hook 어댑터)
-- **Claude Code**: `settings.json`의 hooks(`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, `SubagentStop`, `Notification` 등)에 `exp hook emit` 명령을 등록 → stdin JSON을 정규화해 데몬으로.
-- **Codex**: `notify` 설정 및 지원되는 훅 이벤트를 같은 방식으로 수집.
-- **보조 경로**: 세션 트랜스크립트 JSONL(`~/.claude/projects/**`, `~/.codex/sessions/**`)을 tail 하여 토큰/비용/메시지 복원 — 훅이 없는 과거 세션도 재생 가능.
+- **Claude Code**: `~/.claude/settings.json`의 hooks(`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PermissionRequest`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `Subagent*`, `Stop`, `PreCompact`, `SessionEnd`)에 `exp hook --agent claude-code`를 async로 등록 → stdin JSON을 정규화해 데몬으로.
+- **Codex**: `~/.codex/hooks.json`에 같은 방식(Claude와 거의 같은 형식)으로 등록하고 `PostModelRequest`(토큰 수)를 더 받는다. 새 훅은 사람이 `/hooks`에서 신뢰해야 실행된다. `notify`는 턴 완료 하나뿐인 레거시이고 제거 예정이라 쓰지 않는다.
+- **보조 경로(보류)**: 세션 트랜스크립트 JSONL(`~/.claude/projects/**`, `~/.codex/sessions/**`)은 두 회사 모두 안정 인터페이스가 아니라고 명시해 쓰지 않는다. Claude의 토큰·비용은 옵트인 OTel로 받는 것을 검토한다. 근거는 [research/agent-integrations.md](research/agent-integrations.md).
 - **감시 → 개입**으로 확장: `PreToolUse` 훅이 데몬에 질의 → 캔버스의 정책/승인 노드 결과에 따라 허용/차단. (v2, 안전장치 필수)
 
 > 정확한 훅 이벤트 이름과 페이로드는 구현 시점에 각 도구의 최신 문서로 확인할 것.
@@ -360,11 +360,13 @@ exprything/
 | 항목 | 상태 |
 |---|---|
 | 상주 데몬 + 스케줄러 + 히스토리 | 구현. 히스토리는 `node:sqlite`, 값이 같으면 1시간에 한 번만 기록 |
-| 소스 | `static`·`push`·`exec`·`file` 구현. `http`·`stream`·`script`·`llm`은 v1 이후 |
+| 소스 | `static`·`push`·`exec`·`file`·`agent` 구현. `http`·`stream`·`script`·`llm`은 v1 이후 |
 | 재시작 복원 | 데몬 재시작 시 마지막 값을 히스토리에서 즉시 복원, 남은 주기만큼 기다렸다 실행 |
 | 실패 처리 | 실패 시 `error` 상태 + 마지막 정상 값 유지, 5s→10s→… 백오프(정상 주기 상한). repair 목록은 `source_status`/`exp status`로 노출 |
 | MCP 툴 | `catalog_get`, `canvas_apply(dryRun)`, `canvas_read`, `canvas_open`, `canvas_selection`, `source_push`, `source_status`. `repair_list`는 `source_status`에 흡수. `events_poll`·`secret_request`는 v1 이후. 서버 `instructions`(언제 쓰는지와 작성 절차)와 툴 annotations(읽기 전용, `canvas_apply`는 멱등)를 준다 |
 | 선택 공유 | 열린 캔버스 페이지가 사람의 선택을 기존 WebSocket으로 데몬에 보낸다. 위젯은 노드 id·타입·제목·소스, 그린 것은 Excalidraw 요소 종류·글자(도형 라벨, 프레임 이름 포함)·위치·화살표가 잇는 대상(`node:<id>`는 위젯)으로 요약한다. 데몬은 페이지마다 마지막 보고를 연결이 살아 있는 동안만 들고 있고, `canvas_selection`/`exp selection`은 캔버스를 지정하지 않으면 가장 최근 것(선택을 바꿨거나 그 탭으로 돌아온 페이지)을 돌려준다. 브라우저가 열려 있지 않으면 `open: false` |
+| 에이전트 연결 | `exp connect claude\|codex`, AI 사이드바의 설정, 데스크탑 Help > Connect an Agent…가 같은 일을 한다. 데스크탑 앱은 처음 찾은 에이전트를 시작할 때 한 번 연결하고(활동 기록은 켜지 않는다), 연결했거나 끊은 에이전트를 `agents-seen.json`에 남겨 다시 건드리지 않는다. 소스에서 띄운 앱, App Translocation, 사용자 지정 `EXPRYTHING_HOME`에서는 하지 않는다: 에이전트 설정은 홈과 상관없이 하나라서 테스트가 실제 설정을 바꾸게 된다. 각 에이전트의 CLI로만 등록하고(Claude는 `mcp add-json --scope user`, Codex는 `mcp add`), 설정 파일은 읽기만 한다. 등록하는 명령은 `~/.exprything/bin/exp` 셔임이어서 앱을 옮기거나 체크아웃으로 바꿔도 셔임만 다시 쓴다(셔임에 `EXPRYTHING_HOME`·포트를 넣어 Codex의 환경변수 허용 목록도 넘는다). 이미 맞으면 아무것도 바꾸지 않는다. 예전 README대로 프로젝트에만 등록된(local scope) 항목이 가리면 지우는 명령을 알려 준다. Claude Code 2.1.317, Codex 0.165.0으로 실측 |
+| 에이전트 활동 | 옵트인. 위 hooks가 `POST /api/agent-events`로 보내고, 데몬이 꺼져 있으면 스풀 파일에 남겼다가 시작할 때 읽는다. 훅은 데몬을 띄우지 않고, 아무것도 출력하지 않으며, 항상 exit 0. 이벤트는 hook 안에서 줄여서 보낸다: 툴 이름과 대상(명령 첫 줄, 파일 경로, 패턴, URL), 성공 여부, 걸린 시간, 프롬프트 길이. 프롬프트·파일 내용·툴 출력·트랜스크립트는 보내지 않는다. `history.db`의 `agent_events`에 30일 보관. `agent` 소스가 최근 이벤트(`view: events`)나 세션별 상태(`view: sessions`: working·waiting·idle·ended)를 값으로 주고, 히스토리 스냅샷은 남기지 않는다. 처음 켜면 `agent-activity` 캔버스를 만든다(이미 있으면 두기). `-p` 세션은 끝날 때 아직 돌던 async 훅을 끊어서 마지막 `Stop`이 빠질 수 있다(`SessionEnd`는 동기여서 남는다) |
 | 저장 위치 (결정 5, 잠정) | 사용자 전역 `~/.exprything/` (`canvases/*.json`, `sources.json`, `history.db`) |
 | exec 신뢰 모델 (결정 7, 잠정) | `cmd`+`cwd` 해시 단위 승인. 명령이 바뀌면 재승인 필요. 드라이런은 승인 없이 1회 실행(에이전트 자신의 권한으로 호출되므로). 승인하면 첫 실행이 끝날 때까지 `pending` |
 | 레이아웃 | `near`/`side` 또는 자동 배치. 사용자가 옮기거나 크기를 바꾼 노드는 pinned |
