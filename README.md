@@ -93,6 +93,15 @@ Widgets can look like Excalidraw shapes. `style` uses Excalidraw's element prope
 - People can restyle a widget's frame from Excalidraw's style panel. Fields they change are pinned and agent updates keep them.
 - `exp catalog` (MCP `catalog_get`) lists the fields and Excalidraw's palette.
 
+## Agents on the canvas
+
+While Claude Code or Codex works on a canvas you have open, you see its cursor there, with its name, and you cannot touch what it is changing.
+
+- The cursor shows up when the agent reads the canvas or your selection, goes to what it is changing, and leaves about 10 seconds after its last call. When that is out of view, the cursor waits at the edge of the canvas.
+- A dry run reserves what it touches: the widgets it writes or removes, the widgets reading a source it writes, and the places new widgets will land. They stay reserved until the agent applies for real and you have seen the change land, or for 20 seconds if it never does.
+- Clicks, drags, right-clicks and widget buttons on what is reserved do nothing, and it leaves your selection; the selection comes back afterwards unless you selected something else. Panning and zooming still work, and a drag you already started is yours to finish.
+- It works for agents on MCP and for `exp` run from an agent's shell. `exp` in your own terminal shows no cursor. Nothing about it is saved.
+
 ## Agent activity
 
 `exp connect claude --activity` (or **Turn on** in the AI sidebar's settings) adds hooks to Claude Code (`~/.claude/settings.json`) or Codex (`~/.codex/hooks.json`) that report what the agent does: sessions starting and ending, prompts, tool calls and their results, approval requests, and Codex's token counts. The `agent-activity` canvas shows the sessions that are working or waiting for you, the tools they use, and a timeline.

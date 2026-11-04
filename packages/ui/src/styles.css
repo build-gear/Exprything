@@ -144,6 +144,28 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   display: none; position: absolute; z-index: 3; box-sizing: border-box;
   border: 1px solid; opacity: 0.2; pointer-events: none; transform-origin: center;
 }
+/* Agents at work (AgentLayer): above the canvas and widgets, below Excalidraw's own UI (z-index 4). */
+.agent-layer { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
+.agent-zone {
+  position: absolute; box-sizing: border-box; transform-origin: center;
+  border: 1.5px dashed var(--agent); border-radius: 8px;
+  background: color-mix(in srgb, var(--agent) 8%, transparent);
+  animation: agent-zone 1.6s ease-in-out infinite;
+}
+@keyframes agent-zone { 50% { opacity: 0.55; } }
+.agent-cursor { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; will-change: transform; transition: opacity 0.2s; }
+.agent-cursor.off-view { opacity: 0.5; }
+.agent-cursor svg { flex: none; margin: -2px 0 0 -2px; filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.3)); }
+.agent-cursor span {
+  margin: 14px 0 0 -6px; padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+  background: var(--agent); color: #fff; font: 600 12px/16px system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-zone { animation: none; }
+}
+/* Excalidraw sets the canvas's cursor inline as the pointer moves. Panning over a held widget still works. */
+.draw-host[data-agent-held] canvas.interactive:not([style*="grab"]) { cursor: not-allowed !important; }
 .draw-host .excalidraw__embeddable-container__inner { pointer-events: none !important; }
 .draw-host .excalidraw__embeddable-hint { display: none; }
 /* No main menu: its button stays invisible but keeps its slot, which the canvas switcher covers and

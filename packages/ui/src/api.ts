@@ -1,4 +1,6 @@
-import type { CanvasDrawing, CanvasView, NodeStyle, SelectionReport } from '@exprything/schema';
+import type {
+  AgentPresence, CanvasDrawing, CanvasView, NodeStyle, SelectionReport, ServerMessage,
+} from '@exprything/schema';
 
 const TOKEN_KEY = 'exprything.token';
 
@@ -21,9 +23,24 @@ export class Api {
   /** The open change-notification socket, which also carries selection reports to the daemon. */
   private ws?: WebSocket;
   private selection?: SelectionReport;
+  private presence: AgentPresence[] = [];
+  private presenceListeners = new Set<() => void>();
   private selectionListeners = new Set<() => void>();
 
   constructor(private token: string) {}
+
+  /** The agents at work on any canvas, as the daemon last said. */
+  getPresence = () => this.presence;
+
+  subscribePresence = (listener: () => void) => {
+    this.presenceListeners.add(listener);
+    return () => { this.presenceListeners.delete(listener); };
+  };
+
+  private setPresence(agents: AgentPresence[]) {
+    this.presence = agents;
+    this.presenceListeners.forEach((l) => l());
+  }
 
   /** What this page last reported as selected. */
   getSelection = () => this.selection;
@@ -88,14 +105,22 @@ export class Api {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
       const socket = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(this.token)}`);
       ws = socket;
-      socket.onmessage = () => onChange();
+      socket.onmessage = (e) => {
+        const msg = JSON.parse(e.data as string) as ServerMessage;
+        if (msg.type === 'presence') this.setPresence(msg.agents);
+        else onChange();
+      };
       socket.onopen = () => {
         this.ws = socket;
         if (this.selection) socket.send(JSON.stringify(this.selection));
         onChange();
       };
       socket.onclose = () => {
-        if (this.ws === socket) this.ws = undefined;
+        if (this.ws === socket) {
+          this.ws = undefined;
+          // Nothing holds what the daemon can no longer say is held.
+          this.setPresence([]);
+        }
         if (!closed) retry = window.setTimeout(open, 2_000);
       };
     };

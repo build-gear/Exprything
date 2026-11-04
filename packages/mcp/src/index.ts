@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
@@ -23,6 +24,7 @@ How to draw:
 3. exec sources run only after the person approves them on the canvas (or with \`exp approve <id>\`); tell them.
 4. Give them the canvas URL (canvas_open).
 Later, canvas_read and source_status show what is on a canvas and what broke; fix broken recipes with canvas_apply (the same ids update in place). When the person says "this" or "these", call canvas_selection for what they selected.
+While you work the person sees your cursor on the canvas. A dry run reserves what it touches, so they cannot edit it until you apply for real or about 20 seconds pass; apply soon after a dry run.
 Agent activity: when Claude Code or Codex hooks are connected (\`exp connect <agent> --activity\`), sources of kind "agent" read what agents did (events) or the state of each session (view "sessions"); the "agent-activity" canvas shows them.`;
 
 const tools = {
@@ -89,6 +91,8 @@ export async function runMcpServer(client: ExpClient): Promise<void> {
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    // One server runs per agent session, so this is how the canvas tells two sessions' cursors apart.
+    client.agent ??= { id: randomUUID(), name: agentName(server.getClientVersion()) };
     const name = req.params.name as ToolName;
     const tool = tools[name];
     if (!tool) return error(`unknown tool: ${req.params.name}`);
@@ -102,6 +106,15 @@ export async function runMcpServer(client: ExpClient): Promise<void> {
   });
 
   await server.connect(new StdioServerTransport());
+}
+
+/** The name a person knows the agent by, from what its MCP client reports ("claude-code", "codex-mcp-client"). */
+function agentName(client?: { name: string; title?: string }): string {
+  const name = client?.name ?? '';
+  if (/^claude-code/i.test(name)) return 'Claude Code';
+  if (/^codex/i.test(name)) return 'Codex';
+  // It travels in a header.
+  return (client?.title ?? name).replace(/[^\x20-\x7e]/g, '').slice(0, 40) || 'Agent';
 }
 
 async function call(client: ExpClient, name: ToolName, args: any): Promise<unknown> {

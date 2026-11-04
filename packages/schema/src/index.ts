@@ -233,7 +233,9 @@ export interface CanvasView {
   nodes: NodeView[];
 }
 
-export type ServerMessage = { type: 'changed'; canvas?: string; source?: string };
+export type ServerMessage =
+  | { type: 'changed'; canvas?: string; source?: string }
+  | { type: 'presence'; agents: AgentPresence[] };
 
 // ---------- selection (what a person has selected on an open canvas) ----------
 

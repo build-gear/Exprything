@@ -1,4 +1,6 @@
-import { CaptureUpdateAction, Excalidraw, THEME, newElementWith, restoreElements } from '@excalidraw/excalidraw';
+import {
+  CaptureUpdateAction, Excalidraw, THEME, newElementWith, restoreElements, viewportCoordsToSceneCoords,
+} from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import type { ExcalidrawElement, ExcalidrawEmbeddableElement, NonDeleted } from '@excalidraw/excalidraw/element/types';
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
@@ -6,9 +8,10 @@ import {
   createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore,
 } from 'react';
 import type {
-  CanvasDrawing, CanvasView, NodeStyle, NodeView, SelectedDrawing, SelectionReport,
+  AgentPresence, AgentTarget, CanvasDrawing, CanvasView, NodeStyle, NodeView, SelectedDrawing, SelectionReport,
 } from '@exprything/schema';
 import { CanvasCtx } from './context.ts';
+import { AgentLayer, ZONE_PADDING, type Zone } from './AgentLayer.tsx';
 import { SourceSummary } from './SourceSummary.tsx';
 import { frameDiff, frameOf, frameOfElement, resolveLook, sameFrame, type Frame, type Look } from './style.ts';
 import { WidgetCard } from './WidgetCard.tsx';
@@ -40,17 +43,27 @@ const CanvasStyleCtx = createContext<NodeStyle | undefined>(undefined);
  * Which widget the pointer is over and which one is selected. Embeds let the pointer through to
  * the canvas, so CSS :hover never fires on them; the canvas tells us instead. The hover outline
  * follows `hovered`; each widget subscribes to its own `active` flag, so a change re-renders only
- * the widgets it affects.
+ * the widgets it affects. What is drawn over the canvas subscribes to the scene and places itself.
  */
 class WidgetUiStore {
   hovered: string | null = null;
   active: string | null = null;
   private listeners = new Set<() => void>();
+  private sceneListeners = new Set<() => void>();
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   };
+
+  subscribeScene = (listener: () => void) => {
+    this.sceneListeners.add(listener);
+    return () => { this.sceneListeners.delete(listener); };
+  };
+
+  sceneChanged() {
+    this.sceneListeners.forEach((l) => l());
+  }
 
   setHovered(id: string | null) {
     if (id === this.hovered) return;
@@ -86,6 +99,27 @@ function widgetAt(elements: readonly ExcalidrawElement[], x: number, y: number):
     if (id && x >= el.x && x <= el.x + el.width && y >= el.y && y <= el.y + el.height) return id;
   }
   return null;
+}
+
+/** Where an agent's target is now: its widget as the canvas shows it, or the place a new one will land. */
+function zoneOf(target: AgentTarget, elements: readonly ExcalidrawElement[]): Zone {
+  const el = elements.find((e) => e.id === `${ID_PREFIX}${target.node}`);
+  if (!el) return { x: target.x, y: target.y, w: target.w, h: target.h, angle: 0 };
+  return { x: el.x, y: el.y, w: el.width, h: el.height, angle: el.angle };
+}
+
+/** Whether a scene point is in a zone, or within `margin` of it. */
+function inZone(zone: Zone, x: number, y: number, margin = 0): boolean {
+  const dx = x - (zone.x + zone.w / 2);
+  const dy = y - (zone.y + zone.h / 2);
+  const cos = Math.cos(zone.angle);
+  const sin = Math.sin(zone.angle);
+  return Math.abs(dx * cos + dy * sin) <= zone.w / 2 + margin && Math.abs(dy * cos - dx * sin) <= zone.h / 2 + margin;
+}
+
+/** The agent holding a scene point. */
+function agentAt(agents: AgentPresence[], elements: readonly ExcalidrawElement[], x: number, y: number, margin = 0) {
+  return agents.find((a) => a.targets.some((t) => inZone(zoneOf(t, elements), x, y, margin)));
 }
 
 /** Any embed of a widget, including copies a person made of one (copies keep customData). */
@@ -221,6 +255,12 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
   const widgetSelected = useSyncExternalStore(ui.subscribe, () => ui.active !== null);
   const [excalidraw, setExcalidraw] = useState<ExcalidrawImperativeAPI | null>(null);
   const [initial, setInitial] = useState<{ elements: ExcalidrawElement[]; files: BinaryFiles } | null>(null);
+  const everyone = useSyncExternalStore(api.subscribePresence, api.getPresence);
+  const agents = useMemo(() => everyone.filter((a) => a.canvas === canvas), [everyone, canvas]);
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
+  /** What agents took out of the person's selection; selected again once they let go. */
+  const displaced = useRef(new Set<string>());
 
   const nodes = useMemo(() => new Map((view?.nodes ?? []).map((n) => [n.id, n])), [view]);
   const nodesRef = useRef(nodes);
@@ -403,7 +443,12 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     clearTimeout(reportTimer.current);
     reportTimer.current = window.setTimeout(() => {
       if (!excalidraw) return;
-      const report = selectionReport(canvas, excalidraw.getSceneElements(), excalidraw.getAppState().selectedElementIds, nodesRef.current);
+      // What an agent took out of the selection is still what the person selected.
+      const selected = {
+        ...excalidraw.getAppState().selectedElementIds,
+        ...Object.fromEntries([...displaced.current].map((id) => [id, true as const])),
+      };
+      const report = selectionReport(canvas, excalidraw.getSceneElements(), selected, nodesRef.current);
       const json = JSON.stringify(report);
       if (json === lastReport.current?.json) return;
       lastReport.current = { json, report };
@@ -447,6 +492,100 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
 
   const hostRef = useRef<HTMLDivElement>(null);
   const outlineRef = useRef<HTMLDivElement>(null);
+  const [excalidrawRoot, setExcalidrawRoot] = useState<Element | null>(null);
+
+  useEffect(() => { setExcalidrawRoot(hostRef.current?.querySelector('.excalidraw') ?? null); }, [excalidraw]);
+
+  const zoneOfTarget = useCallback((t: AgentTarget) => zoneOf(t, excalidraw?.getSceneElements() ?? []), [excalidraw]);
+
+  /**
+   * Keeps what agents hold out of the selection, however it got in (select all, a drag box), so no
+   * key or style panel can reach it. It comes back when they let go, unless the person has selected
+   * something else. What a person is dragging stays theirs until they drop it.
+   */
+  const yieldToAgents = useCallback(() => {
+    if (!excalidraw || pointerDown.current) return;
+    const targets = agentsRef.current.flatMap((a) => a.targets);
+    if (!targets.length && !displaced.current.size) return;
+    const elements = excalidraw.getSceneElements();
+    const held = new Set(targets.map((t) => `${ID_PREFIX}${t.node}`));
+    const zones = targets.map((t) => zoneOf(t, elements));
+    const { selectedElementIds } = excalidraw.getAppState();
+    const selected: Record<string, true> = { ...selectedElementIds };
+    let changed = false;
+    for (const el of elements) {
+      if (!selected[el.id]) continue;
+      if (held.has(el.id) || zones.some((z) => inZone(z, el.x + el.width / 2, el.y + el.height / 2))) {
+        delete selected[el.id];
+        displaced.current.add(el.id);
+        changed = true;
+      }
+    }
+    if (Object.keys(selected).length) {
+      displaced.current.clear();
+    } else if (!targets.length) {
+      for (const el of elements) {
+        if (displaced.current.has(el.id)) {
+          selected[el.id] = true;
+          changed = true;
+        }
+      }
+      displaced.current.clear();
+    }
+    if (changed) {
+      excalidraw.updateScene({
+        appState: { selectedElementIds: selected, selectedGroupIds: {} },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    }
+  }, [excalidraw]);
+
+  useEffect(() => {
+    yieldToAgents();
+    if (!agents.some((a) => a.targets.length)) delete hostRef.current?.dataset.agentHeld;
+  }, [agents, yieldToAgents]);
+
+  /**
+   * Input that starts on what an agent holds stops here, before Excalidraw or the widget sees it.
+   * The wheel and panning go through. Excalidraw's `locked` would not do: a person can unlock it
+   * from the context menu, and it would be saved with their drawings.
+   */
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !excalidraw) return;
+    let refusedPointer: number | undefined;
+    const refuse = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('canvas.interactive, .excalidraw__embeddable-container')) return;
+      const appState = excalidraw.getAppState();
+      const { x, y } = viewportCoordsToSceneCoords(e, appState);
+      const agent = agentAt(agentsRef.current, excalidraw.getSceneElements(), x, y, ZONE_PADDING / appState.zoom.value);
+      if (agent) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      return agent;
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      // Excalidraw's canvas shows this cursor only while the hand tool or the space bar pans.
+      if (e.button !== 0 || (e.target as HTMLElement).style.cursor === 'grab') return;
+      const agent = refuse(e);
+      if (!agent) return;
+      refusedPointer = e.pointerId;
+      excalidraw.setToast({ message: `${agent.name} is editing this. You can use it again when it finishes.`, duration: 3000 });
+    };
+    // A pointer up with no pointer down would still follow a link under the pointer.
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerId !== refusedPointer) return;
+      refusedPointer = undefined;
+      e.stopPropagation();
+    };
+    const stop = new AbortController();
+    const capture = { capture: true, signal: stop.signal };
+    host.addEventListener('pointerdown', onPointerDown, capture);
+    host.addEventListener('pointerup', onPointerUp, capture);
+    for (const type of ['click', 'dblclick', 'contextmenu'] as const) host.addEventListener(type, refuse, capture);
+    return () => stop.abort();
+  }, [excalidraw]);
 
   /**
    * Preview Excalidraw's selection border on the widget under the pointer: same place, width and
@@ -485,8 +624,10 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     const selected = Object.keys(appState.selectedElementIds).filter((id) => appState.selectedElementIds[id]);
     ui.setActive(selected.length === 1 ? nodeIdOfElementId(selected[0]) ?? null : null);
     syncLinks(appState, selected);
+    yieldToAgents();
     reportSelection();
     placeOutline(); // panned, zoomed or moved
+    ui.sceneChanged();
 
     clearTimeout(syncTimer.current);
     syncTimer.current = window.setTimeout(syncWidgets, SYNC_DELAY_MS);
@@ -502,10 +643,16 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     };
     clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => flushSave(), SAVE_DELAY_MS);
-  }, [ui, syncLinks, reportSelection, placeOutline, syncWidgets, flushSave]);
+  }, [ui, syncLinks, yieldToAgents, reportSelection, placeOutline, syncWidgets, flushSave]);
 
   const onPointerUpdate = useCallback(({ pointer }: { pointer: { x: number; y: number } }) => {
-    if (excalidraw) ui.setHovered(widgetAt(excalidraw.getSceneElements(), pointer.x, pointer.y));
+    if (!excalidraw) return;
+    const elements = excalidraw.getSceneElements();
+    const held = agentAt(agentsRef.current, elements, pointer.x, pointer.y, ZONE_PADDING / excalidraw.getAppState().zoom.value);
+    ui.setHovered(held ? null : widgetAt(elements, pointer.x, pointer.y));
+    const host = hostRef.current;
+    if (host && held) host.dataset.agentHeld = '';
+    else if (host) delete host.dataset.agentHeld;
   }, [excalidraw, ui]);
 
   const onPointerDown = useCallback(() => {
@@ -521,9 +668,10 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
         project();
       }
       syncWidgets();
+      yieldToAgents();
       placeOutline();
     }, 0);
-  }, [project, syncWidgets, placeOutline]);
+  }, [project, syncWidgets, yieldToAgents, placeOutline]);
 
   const renderEmbeddable = useCallback((el: NonDeleted<ExcalidrawEmbeddableElement>) => {
     const id = (el.customData?.exprything as { node?: string } | undefined)?.node ?? widgetNodeId(el);
@@ -565,6 +713,15 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
               UIOptions={uiOptions}
             />
             <div ref={outlineRef} className="hover-outline" aria-hidden />
+            {excalidraw && excalidrawRoot && (
+              <AgentLayer
+                agents={agents}
+                root={excalidrawRoot}
+                excalidraw={excalidraw}
+                zoneOf={zoneOfTarget}
+                subscribeScene={ui.subscribeScene}
+              />
+            )}
           </div>
         </UiCtx.Provider>
       </CanvasStyleCtx.Provider>

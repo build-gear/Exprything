@@ -81,6 +81,31 @@ export class Engine {
   }
 
   /**
+   * What a request will change on its canvas and where, without saving anything: the nodes it writes
+   * or removes, the nodes reading a source it writes, and every node when it sets the canvas style.
+   */
+  targets(req: ApplyRequest): AgentTarget[] {
+    const nodes = new Map<string, StoredNode>();
+    const sources = new Set<string>();
+    const draft: Canvas = { id: req.canvas, title: req.canvas, nodes: [...(this.canvases.get(req.canvas)?.nodes ?? [])], updatedAt: '' };
+    for (const op of req.ops) {
+      if (op.op === 'node.upsert') {
+        nodes.set(op.node.id, this.canvases.upsertNode(draft, op.node));
+      } else if (op.op === 'node.delete') {
+        const gone = draft.nodes.find((n) => n.id === op.id);
+        if (gone) nodes.set(gone.id, gone);
+        this.canvases.deleteNode(draft, op.id);
+      } else {
+        sources.add(op.op === 'source.upsert' ? op.source.id : op.id);
+      }
+    }
+    for (const n of draft.nodes) {
+      if (!nodes.has(n.id) && (req.style || (n.source && sources.has(n.source)))) nodes.set(n.id, n);
+    }
+    return [...nodes.values()].map(({ id, x, y, w, h }) => ({ node: id, x, y, w, h }));
+  }
+
+  /**
    * Runs every source the ops touch (or that touched nodes read) exactly once and renders the
    * touched nodes, without saving anything. This is how an agent verifies a recipe before leaving.
    */

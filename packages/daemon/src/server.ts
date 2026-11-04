@@ -4,19 +4,20 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { z } from 'zod';
 import {
   AgentEvent, ApplyRequest, CanvasDrawing, Id, NodeStyle, SelectionReport, authoringGuide, stylePalette, widgetCatalog,
-  type CanvasSelection, type StoredNode,
+  type AgentIdentity, type CanvasSelection, type ServerMessage, type StoredNode,
 } from '@exprything/schema';
 import {
   AGENT_IDS, agentStatus, connectAgent, connectNewAgents, disconnectAgent, parseAgent, setAgentActivity,
 } from './agents.ts';
 import { Engine } from './engine.ts';
 import { DEFAULT_PORT, paths, readOrCreateToken } from './paths.ts';
+import { Presence } from './presence.ts';
 
 const UI_DIST = resolve(dirname(fileURLToPath(import.meta.url)), '../../ui/dist');
 const ALLOWED_HOSTS = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/;
@@ -30,10 +31,16 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   /** What each open canvas page last reported as selected, kept while its socket is connected. */
   const selections = new Map<WebSocket, CanvasSelection & { canvas: string; at: string }>();
   const baseUrl = () => `http://127.0.0.1:${port}`;
-  const engine = new Engine((msg) => {
-    const data = JSON.stringify({ type: 'changed', ...msg });
+  const broadcast = (msg: ServerMessage) => {
+    const data = JSON.stringify(msg);
     for (const s of sockets) if (s.readyState === s.OPEN) s.send(data);
-  }, baseUrl);
+  };
+  const engine = new Engine((msg) => broadcast({ type: 'changed', ...msg }), baseUrl);
+  const presence = new Presence((agents) => broadcast({ type: 'presence', agents }));
+  const visit = (c: Context, canvas: string) => {
+    const agent = agentOf(c);
+    if (agent) presence.visit(agent, canvas);
+  };
 
   const app = new Hono();
 
@@ -57,6 +64,7 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
   app.get('/api/canvases/:id', async (c) => {
     const view = await engine.view(c.req.param('id'));
     if (!view) throw new HTTPException(404, { message: 'no such canvas' });
+    visit(c, view.canvas.id);
     return c.json(view);
   });
 
@@ -67,9 +75,12 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
 
   app.post('/api/apply', async (c) => {
     const req = parse(ApplyRequest, await c.req.json());
+    const agent = agentOf(c);
     try {
+      if (agent) presence[req.dryRun ? 'reserve' : 'applying'](agent, req.canvas, engine.targets(req));
       return c.json(req.dryRun ? await engine.dryRun(req) : engine.apply(req));
     } catch (e) {
+      if (agent) presence.release(agent);
       throw new HTTPException(400, { message: (e as Error).message });
     }
   });
@@ -147,6 +158,7 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     for (const s of selections.values()) {
       if ((!canvas || s.canvas === canvas) && (!latest || s.at > latest.at)) latest = s;
     }
+    if (latest?.canvas) visit(c, latest.canvas);
     return c.json(latest ?? ({ canvas: canvas ?? null, open: false, nodes: [], drawings: [], total: 0 } satisfies CanvasSelection));
   });
 
@@ -199,6 +211,7 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
       sockets.add(ws);
+      ws.send(JSON.stringify({ type: 'presence', agents: presence.list() } satisfies ServerMessage));
       ws.on('message', (raw) => {
         const msg = SelectionReport.safeParse(parseJson(raw.toString()));
         if (!msg.success) return;
@@ -239,6 +252,12 @@ export function catalogJson() {
     style: { schema: z.toJSONSchema(NodeStyle), palette: stylePalette },
     sources: z.toJSONSchema(ApplyRequest, { io: 'input', unrepresentable: 'any' }),
   };
+}
+
+/** The agent behind a request (ExpClient.agent). The canvas page's own requests carry none. */
+function agentOf(c: Context): AgentIdentity | undefined {
+  const id = c.req.header('x-exprything-agent');
+  return id ? { id, name: c.req.header('x-exprything-agent-name') ?? 'Agent' } : undefined;
 }
 
 function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {

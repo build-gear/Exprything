@@ -93,6 +93,8 @@ Author recipes, not results:
   apply request's "style". roughness above 0 also draws bar and line charts by hand. Prefer the palette colors.
   Keep fills (hachure, cross-hatch) for stat and markdown widgets; they make charts and tables hard to read.
 - Style fields a person changed on the canvas stay as they set them; your updates do not override those.
+- While you work the person sees your cursor. A dry run reserves what it touches: they cannot edit those widgets, or
+  the places new ones will land, until you apply for real or about 20 seconds pass. So apply soon after a dry run.
 - When the person says "this" or "these", call canvas_selection: it lists the widgets (node ids) and the shapes,
   text and arrows they have selected on the canvas open in their browser.
 - Sources of kind "agent" read what connected coding agents did (after \`exp connect <agent> --activity\`): recent

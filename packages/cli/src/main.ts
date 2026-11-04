@@ -21,7 +21,20 @@ function startInBackground(): void {
   spawn(process.execPath, [BIN, 'daemon', 'run'], { detached: true, stdio: ['ignore', log, log] }).unref();
 }
 
-const connect = () => ExpClient.connect({ start: startInBackground });
+/** The coding agent whose shell this `exp` runs in: what it does shows on the canvas as its MCP calls do. */
+function shellAgent(): AgentIdentity | undefined {
+  if (process.env.CLAUDECODE) return { id: process.env.CLAUDE_CODE_SESSION_ID ?? 'claude-code', name: 'Claude Code' };
+  if (process.env.CODEX_THREAD_ID) return { id: process.env.CODEX_THREAD_ID, name: 'Codex' };
+  return undefined;
+}
+
+const daemonClient = () => ExpClient.connect({ start: startInBackground });
+
+async function connect(): Promise<ExpClient> {
+  const client = await daemonClient();
+  client.agent = shellAgent();
+  return client;
+}
 
 function print(value: unknown): void {
   console.log(typeof value === 'string' ? value : JSON.stringify(value, null, 2));
@@ -137,7 +150,7 @@ program
   });
 
 program.command('mcp').description('run the MCP server over stdio (for Claude Code / Codex)').action(async () => {
-  await runMcpServer(await connect());
+  await runMcpServer(await daemonClient());
 });
 
 program

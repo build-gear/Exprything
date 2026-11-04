@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type {
-  AgentId, ApplyRequestInput, ApplyResult, CanvasSelection, CanvasView, DryRunResult, SourceState,
+  AgentId, AgentIdentity, ApplyRequestInput, ApplyResult, CanvasSelection, CanvasView, DryRunResult, SourceState,
 } from '@exprything/schema';
 
 const DEFAULT_PORT = 7717;
@@ -19,6 +19,9 @@ export interface ConnectOptions {
 
 /** Thin HTTP client for exprythingd. The CLI and the MCP server are both built on it. */
 export class ExpClient {
+  /** The agent this client works for: open canvases show its cursor on what it reads and changes. */
+  agent?: AgentIdentity;
+
   constructor(readonly baseUrl: string, private token: string) {}
 
   static async connect(opts: ConnectOptions = {}): Promise<ExpClient> {
@@ -96,7 +99,11 @@ export class ExpClient {
   private async call<T>(method: string, path: string, body?: unknown): Promise<T> {
     const res = await fetch(this.baseUrl + path, {
       method,
-      headers: { authorization: `Bearer ${this.token}`, ...(body !== undefined && { 'content-type': 'application/json' }) },
+      headers: {
+        authorization: `Bearer ${this.token}`,
+        ...(body !== undefined && { 'content-type': 'application/json' }),
+        ...(this.agent && { 'x-exprything-agent': this.agent.id, 'x-exprything-agent-name': this.agent.name }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
