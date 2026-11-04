@@ -6,6 +6,7 @@ import { ApplyRequest, Id, type ApplyRequestInput } from '@exprything/schema';
 import type { ExpClient } from '@exprything/client';
 
 const CanvasArg = z.object({ canvas: Id.default('main') });
+const SelectionArgs = z.object({ canvas: Id.optional().describe('leave out for the canvas the person used last') });
 const PushArgs = z.object({
   source: Id,
   data: z.unknown().describe('item or array of items to add'),
@@ -35,6 +36,13 @@ const tools = {
   canvas_open: {
     description: 'Get the URL of a canvas to show the user, plus sources awaiting approval and sources needing repair.',
     args: CanvasArg,
+  },
+  canvas_selection: {
+    description:
+      'What the person has selected on a canvas open in their browser. Call it when they say "this" or "these". ' +
+      'Returns widget nodes (ids you can update with canvas_apply) and things they drew (type, text, position, ' +
+      'what an arrow connects; a widget end reads node:<id>). open=false means no browser has the canvas open.',
+    args: SelectionArgs,
   },
   source_push: {
     description: 'Push data into a push-kind source (e.g. progress or log lines from a long task).',
@@ -97,6 +105,8 @@ async function call(client: ExpClient, name: ToolName, args: any): Promise<unkno
       const status = await client.status();
       return { url: client.canvasUrl(args.canvas), canvases: await client.canvases(), needsApproval: status.needsApproval, repairs: status.repairs };
     }
+    case 'canvas_selection':
+      return client.selection(args.canvas);
     case 'source_push':
       return client.push(args.source, args.data, args.mode);
     case 'source_status':

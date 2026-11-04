@@ -9,7 +9,8 @@ import { HTTPException } from 'hono/http-exception';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { z } from 'zod';
 import {
-  ApplyRequest, CanvasDrawing, Id, NodeStyle, authoringGuide, stylePalette, widgetCatalog, type StoredNode,
+  ApplyRequest, CanvasDrawing, Id, NodeStyle, SelectionReport, authoringGuide, stylePalette, widgetCatalog,
+  type CanvasSelection, type StoredNode,
 } from '@exprything/schema';
 import { Engine } from './engine.ts';
 import { DEFAULT_PORT, paths, readOrCreateToken } from './paths.ts';
@@ -23,6 +24,8 @@ export interface DaemonInfo { port: number; pid: number; version: string }
 export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT_PORT)) {
   const token = readOrCreateToken();
   const sockets = new Set<WebSocket>();
+  /** What each open canvas page last reported as selected, kept while its socket is connected. */
+  const selections = new Map<WebSocket, CanvasSelection & { canvas: string; at: string }>();
   const baseUrl = () => `http://127.0.0.1:${port}`;
   const engine = new Engine((msg) => {
     const data = JSON.stringify({ type: 'changed', ...msg });
@@ -134,6 +137,16 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
 
   app.get('/api/catalog', (c) => c.json(catalogJson()));
 
+  // The most recent report wins: with no canvas named, that is the canvas the person used last.
+  app.get('/api/selection', (c) => {
+    const canvas = c.req.query('canvas');
+    let latest: CanvasSelection & { at: string } | undefined;
+    for (const s of selections.values()) {
+      if ((!canvas || s.canvas === canvas) && (!latest || s.at > latest.at)) latest = s;
+    }
+    return c.json(latest ?? ({ canvas: canvas ?? null, open: false, nodes: [], drawings: [], total: 0 } satisfies CanvasSelection));
+  });
+
   if (existsSync(UI_DIST)) {
     app.use('/*', serveStatic({ root: UI_DIST }));
   } else {
@@ -156,7 +169,16 @@ export function startDaemon(port = Number(process.env.EXPRYTHING_PORT ?? DEFAULT
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
       sockets.add(ws);
-      ws.on('close', () => sockets.delete(ws));
+      ws.on('message', (raw) => {
+        const msg = SelectionReport.safeParse(parseJson(raw.toString()));
+        if (!msg.success) return;
+        const { type: _, ...report } = msg.data;
+        selections.set(ws, { ...report, open: true, at: new Date().toISOString() });
+      });
+      ws.on('close', () => {
+        sockets.delete(ws);
+        selections.delete(ws);
+      });
     });
   });
 
@@ -193,6 +215,14 @@ function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
   const r = schema.safeParse(input);
   if (!r.success) throw new HTTPException(400, { message: z.prettifyError(r.error) });
   return r.data;
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
 }
 
 async function wrap(fn: () => unknown): Promise<void> {

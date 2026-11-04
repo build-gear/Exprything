@@ -1,4 +1,4 @@
-import type { CanvasDrawing, CanvasView, NodeStyle } from '@exprything/schema';
+import type { CanvasDrawing, CanvasView, NodeStyle, SelectionReport } from '@exprything/schema';
 
 const TOKEN_KEY = 'exprything.token';
 
@@ -18,7 +18,20 @@ export function canvasFromHash(): string {
 }
 
 export class Api {
+  /** The open change-notification socket, which also carries selection reports to the daemon. */
+  private ws?: WebSocket;
+  private selection?: SelectionReport;
+  private selectionListeners = new Set<() => void>();
+
   constructor(private token: string) {}
+
+  /** What this page last reported as selected. */
+  getSelection = () => this.selection;
+
+  subscribeSelection = (listener: () => void) => {
+    this.selectionListeners.add(listener);
+    return () => { this.selectionListeners.delete(listener); };
+  };
 
   canvases(): Promise<{ id: string; title: string; nodes: number }[]> {
     return this.call('GET', '/api/canvases');
@@ -57,16 +70,34 @@ export class Api {
     return this.call('POST', `/api/sources/${encodeURIComponent(source)}/refresh`);
   }
 
+  /**
+   * Tell the daemon what is selected on the open canvas, so agents can read it. The daemon keeps it
+   * for as long as this page stays connected; it is sent again whenever the connection reopens.
+   */
+  reportSelection(report: SelectionReport): void {
+    this.selection = report;
+    this.selectionListeners.forEach((l) => l());
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(report));
+  }
+
   subscribe(onChange: () => void): () => void {
     let ws: WebSocket | undefined;
     let closed = false;
     let retry: number | undefined;
     const open = () => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(this.token)}`);
-      ws.onmessage = () => onChange();
-      ws.onopen = () => onChange();
-      ws.onclose = () => { if (!closed) retry = window.setTimeout(open, 2_000); };
+      const socket = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(this.token)}`);
+      ws = socket;
+      socket.onmessage = () => onChange();
+      socket.onopen = () => {
+        this.ws = socket;
+        if (this.selection) socket.send(JSON.stringify(this.selection));
+        onChange();
+      };
+      socket.onclose = () => {
+        if (this.ws === socket) this.ws = undefined;
+        if (!closed) retry = window.setTimeout(open, 2_000);
+      };
     };
     open();
     return () => {

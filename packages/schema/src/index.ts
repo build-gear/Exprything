@@ -219,6 +219,56 @@ export interface CanvasView {
 
 export type ServerMessage = { type: 'changed'; canvas?: string; source?: string };
 
+// ---------- selection (what a person has selected on an open canvas) ----------
+
+/** A selected widget. Its id is the node id, so an agent can update it with canvas_apply. */
+export const SelectedNode = z.object({
+  id: Id,
+  type: z.string(),
+  title: z.string().optional(),
+  source: z.string().optional(),
+});
+export type SelectedNode = z.infer<typeof SelectedNode>;
+
+/** A selected thing a person drew: an Excalidraw element, summarized. */
+export const SelectedDrawing = z.object({
+  id: z.string(),
+  type: z.string().describe('Excalidraw element type: rectangle, ellipse, diamond, text, arrow, line, freedraw, image, frame'),
+  text: z.string().optional().describe("a text element's text, a shape's label or a frame's name"),
+  link: z.string().optional(),
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+  from: z.string().optional().describe('what an arrow starts at: an element id, or node:<id> for a widget'),
+  to: z.string().optional().describe('what an arrow ends at: an element id, or node:<id> for a widget'),
+});
+export type SelectedDrawing = z.infer<typeof SelectedDrawing>;
+
+/** Sent by an open canvas over its WebSocket when its selection changes, and again when it regains focus. */
+export const SelectionReport = z.object({
+  type: z.literal('selection'),
+  canvas: Id,
+  nodes: z.array(SelectedNode).max(200),
+  drawings: z.array(SelectedDrawing).max(200),
+  /** Everything selected, including what did not fit in the lists. */
+  total: z.number().int().nonnegative(),
+});
+export type SelectionReport = z.infer<typeof SelectionReport>;
+
+/** What a person has selected on a canvas, as agents read it (MCP canvas_selection, `exp selection`). */
+export interface CanvasSelection {
+  /** The canvas; null when no browser has one open. */
+  canvas: string | null;
+  /** Whether a browser has the canvas open now. */
+  open: boolean;
+  /** When the selection last changed, or the person last came back to the canvas. */
+  at?: string;
+  nodes: SelectedNode[];
+  drawings: SelectedDrawing[];
+  total: number;
+}
+
 // ---------- drawing (human-drawn Excalidraw layer, spike) ----------
 
 /**

@@ -56,6 +56,7 @@ pnpm exp open repo-pulse
 | `exp status` | freshness, approvals and errors of every source |
 | `exp approve <source>` | allow an exec source to run on schedule |
 | `exp refresh <source>` | run a source now |
+| `exp selection [canvas]` | what you have selected on an open canvas (by default the one you used last), as agents see it |
 | `exp catalog` | widget catalog and authoring guide |
 | `exp daemon start\|stop\|run` | manage the daemon |
 | `exp service install\|uninstall` | run the daemon at login (launchd) |
@@ -68,6 +69,7 @@ State lives in `~/.exprything` (override with `EXPRYTHING_HOME`); the daemon lis
 The canvas is [Excalidraw](https://github.com/excalidraw/excalidraw): people can draw shapes, text and arrows around the live widgets, and drawings are saved to `~/.exprything/drawings/`.
 Widgets stay owned by agent recipes: moving or resizing one pins it, deleting one is undone.
 Until a widget has a value (a new or changed recipe), the whole widget is drawn as a skeleton of its own layout by [Skullet](https://skullet.lochie.me). It shimmers while the recipe runs and holds still under the banner while it waits for approval.
+Agents can read what you select (MCP `canvas_selection`, `exp selection`): widgets by node id, and the shapes, text and arrows you drew, so you can point at something and ask about "this".
 Switch canvases from the menu in the top-left corner; the top-right corner shows the canvas's sources and any that await approval or repair.
 The Excalidraw renderer is still a spike (see [docs/research/excalidraw.md](docs/research/excalidraw.md), section 10.5).
 

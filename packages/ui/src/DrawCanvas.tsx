@@ -5,7 +5,9 @@ import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw
 import {
   createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore,
 } from 'react';
-import type { CanvasDrawing, CanvasView, NodeStyle, NodeView } from '@exprything/schema';
+import type {
+  CanvasDrawing, CanvasView, NodeStyle, NodeView, SelectedDrawing, SelectionReport,
+} from '@exprything/schema';
 import { CanvasCtx } from './context.ts';
 import { SourceSummary } from './SourceSummary.tsx';
 import { frameDiff, frameOf, frameOfElement, resolveLook, sameFrame, type Frame, type Look } from './style.ts';
@@ -23,6 +25,9 @@ const ID_PREFIX = 'node:';
 const LINK_PREFIX = 'exprything:node/';
 const SAVE_DELAY_MS = 800;
 const SYNC_DELAY_MS = 250;
+const SELECTION_REPORT_DELAY_MS = 200;
+/** How many selected widgets, and drawings, a selection report lists; its `total` counts everything. */
+const MAX_REPORTED = 200;
 /** Gap between an element and Excalidraw's selection border, in screen px (DEFAULT_TRANSFORM_HANDLE_SPACING * 2). */
 const SELECTION_PADDING = 4;
 
@@ -149,6 +154,60 @@ function followMovedWidgets(arrow: ExcalidrawElement, moved: Map<string, Delta>)
   });
 }
 
+/**
+ * The selection as agents read it (MCP canvas_selection, `exp selection`): widgets by node id and
+ * drawings summarized, both in stacking order.
+ */
+function selectionReport(
+  canvas: string,
+  elements: readonly ExcalidrawElement[],
+  selectedIds: AppState['selectedElementIds'],
+  nodes: Map<string, NodeView>,
+): SelectionReport {
+  const byId = new Map(elements.map((el) => [el.id, el]));
+  const selected = elements.filter((el) => selectedIds[el.id]);
+  const report: SelectionReport = { type: 'selection', canvas, nodes: [], drawings: [], total: selected.length };
+  for (const el of selected) {
+    const id = widgetNodeId(el);
+    if (id) {
+      const n = nodes.get(id);
+      if (n && report.nodes.length < MAX_REPORTED) report.nodes.push({ id, type: n.type, title: n.title, source: n.source });
+    } else if (!isWidgetEmbed(el) && report.drawings.length < MAX_REPORTED) {
+      report.drawings.push(drawingSummary(el, byId));
+    }
+  }
+  return report;
+}
+
+function drawingSummary(el: ExcalidrawElement, byId: Map<string, ExcalidrawElement>): SelectedDrawing {
+  const summary: SelectedDrawing = {
+    id: el.id,
+    type: el.type,
+    x: Math.round(el.x),
+    y: Math.round(el.y),
+    width: Math.round(el.width),
+    height: Math.round(el.height),
+  };
+  const text = textOf(el, byId);
+  if (text) summary.text = text;
+  if (el.link) summary.link = el.link;
+  if (el.type === 'arrow') {
+    // A widget end reads node:<id>, the widget element's id.
+    if (el.startBinding) summary.from = el.startBinding.elementId;
+    if (el.endBinding) summary.to = el.endBinding.elementId;
+  }
+  return summary;
+}
+
+/** The words a drawing carries: its own text, the label bound to a shape, or a frame's name. */
+function textOf(el: ExcalidrawElement, byId: Map<string, ExcalidrawElement>): string | undefined {
+  if (el.type === 'text') return el.originalText || el.text;
+  if (el.type === 'frame' || el.type === 'magicframe') return el.name ?? undefined;
+  const label = el.boundElements?.find((b) => b.type === 'text');
+  const bound = label && byId.get(label.id);
+  return bound?.type === 'text' ? bound.originalText || bound.text : undefined;
+}
+
 /** Changes whenever a drawing element is added, edited or deleted. */
 function drawingSignature(elements: readonly ExcalidrawElement[]): string {
   const own = elements.filter((el) => !isWidgetElement(el));
@@ -182,6 +241,8 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
   const pendingSave = useRef<CanvasDrawing | null>(null);
   const saveTimer = useRef<number | undefined>(undefined);
   const syncTimer = useRef<number | undefined>(undefined);
+  const reportTimer = useRef<number | undefined>(undefined);
+  const lastReport = useRef<{ json: string; report: SelectionReport } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -337,6 +398,36 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     });
   }, [excalidraw]);
 
+  /** Tell the daemon what is selected once the selection settles, and only when the report changed. */
+  const reportSelection = useCallback(() => {
+    clearTimeout(reportTimer.current);
+    reportTimer.current = window.setTimeout(() => {
+      if (!excalidraw) return;
+      const report = selectionReport(canvas, excalidraw.getSceneElements(), excalidraw.getAppState().selectedElementIds, nodesRef.current);
+      const json = JSON.stringify(report);
+      if (json === lastReport.current?.json) return;
+      lastReport.current = { json, report };
+      api.reportSelection(report);
+    }, SELECTION_REPORT_DELAY_MS);
+  }, [excalidraw, api, canvas]);
+
+  // The first report says this canvas is open; agents may also rename or remove a selected widget.
+  useEffect(() => { reportSelection(); }, [reportSelection, nodes]);
+
+  // Coming back to this canvas makes it the one agents read when they name no canvas.
+  useEffect(() => {
+    const resend = () => {
+      if (document.visibilityState === 'visible' && lastReport.current) api.reportSelection(lastReport.current.report);
+    };
+    window.addEventListener('focus', resend);
+    document.addEventListener('visibilitychange', resend);
+    return () => {
+      window.removeEventListener('focus', resend);
+      document.removeEventListener('visibilitychange', resend);
+      clearTimeout(reportTimer.current);
+    };
+  }, [api]);
+
   const flushSave = useCallback((keepalive = false) => {
     clearTimeout(saveTimer.current);
     const drawing = pendingSave.current;
@@ -394,6 +485,7 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     const selected = Object.keys(appState.selectedElementIds).filter((id) => appState.selectedElementIds[id]);
     ui.setActive(selected.length === 1 ? nodeIdOfElementId(selected[0]) ?? null : null);
     syncLinks(appState, selected);
+    reportSelection();
     placeOutline(); // panned, zoomed or moved
 
     clearTimeout(syncTimer.current);
@@ -410,7 +502,7 @@ export function DrawCanvas({ view, title }: { view: CanvasView | null; title: st
     };
     clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => flushSave(), SAVE_DELAY_MS);
-  }, [ui, syncLinks, placeOutline, syncWidgets, flushSave]);
+  }, [ui, syncLinks, reportSelection, placeOutline, syncWidgets, flushSave]);
 
   const onPointerUpdate = useCallback(({ pointer }: { pointer: { x: number; y: number } }) => {
     if (excalidraw) ui.setHovered(widgetAt(excalidraw.getSceneElements(), pointer.x, pointer.y));

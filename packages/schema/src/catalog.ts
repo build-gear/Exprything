@@ -92,4 +92,6 @@ Author recipes, not results:
   strokeWidth, strokeStyle, roughness, roundness, opacity, fontFamily): on a node, or for the whole canvas with the
   apply request's "style". roughness above 0 also draws bar and line charts by hand. Prefer the palette colors.
   Keep fills (hachure, cross-hatch) for stat and markdown widgets; they make charts and tables hard to read.
-- Style fields a person changed on the canvas stay as they set them; your updates do not override those.`;
+- Style fields a person changed on the canvas stay as they set them; your updates do not override those.
+- When the person says "this" or "these", call canvas_selection: it lists the widgets (node ids) and the shapes,
+  text and arrows they have selected on the canvas open in their browser.`;

@@ -363,7 +363,8 @@ exprything/
 | 소스 | `static`·`push`·`exec`·`file` 구현. `http`·`stream`·`script`·`llm`은 v1 이후 |
 | 재시작 복원 | 데몬 재시작 시 마지막 값을 히스토리에서 즉시 복원, 남은 주기만큼 기다렸다 실행 |
 | 실패 처리 | 실패 시 `error` 상태 + 마지막 정상 값 유지, 5s→10s→… 백오프(정상 주기 상한). repair 목록은 `source_status`/`exp status`로 노출 |
-| MCP 툴 | `catalog_get`, `canvas_apply(dryRun)`, `canvas_read`, `canvas_open`, `source_push`, `source_status`. `repair_list`는 `source_status`에 흡수. `events_poll`·`secret_request`는 v1 이후 |
+| MCP 툴 | `catalog_get`, `canvas_apply(dryRun)`, `canvas_read`, `canvas_open`, `canvas_selection`, `source_push`, `source_status`. `repair_list`는 `source_status`에 흡수. `events_poll`·`secret_request`는 v1 이후. 서버 `instructions`(언제 쓰는지와 작성 절차)와 툴 annotations(읽기 전용, `canvas_apply`는 멱등)를 준다 |
+| 선택 공유 | 열린 캔버스 페이지가 사람의 선택을 기존 WebSocket으로 데몬에 보낸다. 위젯은 노드 id·타입·제목·소스, 그린 것은 Excalidraw 요소 종류·글자(도형 라벨, 프레임 이름 포함)·위치·화살표가 잇는 대상(`node:<id>`는 위젯)으로 요약한다. 데몬은 페이지마다 마지막 보고를 연결이 살아 있는 동안만 들고 있고, `canvas_selection`/`exp selection`은 캔버스를 지정하지 않으면 가장 최근 것(선택을 바꿨거나 그 탭으로 돌아온 페이지)을 돌려준다. 브라우저가 열려 있지 않으면 `open: false` |
 | 저장 위치 (결정 5, 잠정) | 사용자 전역 `~/.exprything/` (`canvases/*.json`, `sources.json`, `history.db`) |
 | exec 신뢰 모델 (결정 7, 잠정) | `cmd`+`cwd` 해시 단위 승인. 명령이 바뀌면 재승인 필요. 드라이런은 승인 없이 1회 실행(에이전트 자신의 권한으로 호출되므로). 승인하면 첫 실행이 끝날 때까지 `pending` |
 | 레이아웃 | `near`/`side` 또는 자동 배치. 사용자가 옮기거나 크기를 바꾼 노드는 pinned |

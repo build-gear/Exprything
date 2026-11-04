@@ -114,6 +114,10 @@ program.command('status').description('freshness of every source, approvals and 
 
 program.command('sources').description('list source recipes').action(async () => print(await (await connect()).sources()));
 program.command('canvases').description('list canvases').action(async () => print(await (await connect()).canvases()));
+program
+  .command('selection [canvas]')
+  .description('what the person has selected on an open canvas (by default the one they used last)')
+  .action(async (canvas?: string) => print(await (await connect()).selection(canvas)));
 program.command('refresh <source>').description('run a source now').action(async (id: string) => print(await (await connect()).refresh(id)));
 program.command('catalog').description('widget catalog and authoring guide').action(async () => print(await (await connect()).catalog()));
 

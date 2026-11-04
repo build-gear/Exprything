@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type {
-  ApplyRequestInput, ApplyResult, CanvasView, DryRunResult, SourceState,
+  ApplyRequestInput, ApplyResult, CanvasSelection, CanvasView, DryRunResult, SourceState,
 } from '@exprything/schema';
 
 const DEFAULT_PORT = 7717;
@@ -53,6 +53,11 @@ export class ExpClient {
 
   canvas(id: string): Promise<CanvasView> {
     return this.call('GET', `/api/canvases/${encodeURIComponent(id)}`);
+  }
+
+  /** What the person has selected on a canvas open in a browser; with no canvas, the one they used last. */
+  selection(canvas?: string): Promise<CanvasSelection> {
+    return this.call('GET', `/api/selection${canvas ? `?canvas=${encodeURIComponent(canvas)}` : ''}`);
   }
 
   deleteCanvas(id: string): Promise<unknown> {
