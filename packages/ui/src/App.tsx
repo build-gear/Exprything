@@ -4,6 +4,7 @@ import { AiSidebar, TOGGLE_AI } from './AiSidebar.tsx';
 import { Api, canvasFromHash } from './api.ts';
 import { CanvasCtx } from './context.ts';
 import { DrawCanvas } from './DrawCanvas.tsx';
+import { Crashed, ErrorBoundary } from './ErrorBoundary.tsx';
 import { t, tMessage } from './i18n.ts';
 
 export function App({ api }: { api: Api }) {
@@ -92,11 +93,24 @@ export function App({ api }: { api: Api }) {
     <CanvasCtx.Provider value={{ api, canvas, reload }}>
       <main className="stage">
         <div className="canvas-area">
-          {body}
+          <ErrorBoundary
+            resetKey={canvas}
+            fallback={(error, retry) => <Crashed what={t('The canvas stopped working.')} error={error} retry={retry} />}
+          >
+            {body}
+          </ErrorBoundary>
           <CanvasPicker canvas={canvas} canvases={canvases} />
         </div>
         {aiOpen && (
-          <AiSidebar api={api} canvas={canvas} settings={aiSettings} onSettings={setAiSettings} onClose={() => showAi(false)} />
+          <ErrorBoundary
+            fallback={(error, retry) => (
+              <aside className="ai-sidebar">
+                <Crashed what={t('The AI sidebar stopped working.')} error={error} retry={retry} />
+              </aside>
+            )}
+          >
+            <AiSidebar api={api} canvas={canvas} settings={aiSettings} onSettings={setAiSettings} onClose={() => showAi(false)} />
+          </ErrorBoundary>
         )}
       </main>
     </CanvasCtx.Provider>

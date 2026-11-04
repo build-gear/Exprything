@@ -81,6 +81,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 .empty { margin: auto; padding: 16px; color: var(--muted); text-align: center; max-width: 480px; }
 
+/* What an error boundary shows (ErrorBoundary). */
+.crashed p { margin: 0; color: var(--text); }
+.crashed code { display: block; margin: 8px 0 12px; color: var(--bad); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.crashed button {
+  padding: 5px 12px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--card); color: var(--text); font: inherit; cursor: pointer;
+}
+.ai-sidebar > .crashed { grid-row: 1 / -1; }
+.wn-banner.crashed { white-space: normal; }
+
 /* The canvas switcher sits where Excalidraw's main menu button was. */
 .canvas-picker { position: absolute; top: 16px; left: 16px; z-index: 5; }
 .canvas-picker select {

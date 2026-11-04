@@ -14,6 +14,7 @@ import type { DrawingEvent } from './api.ts';
 import { CanvasCtx } from './context.ts';
 import { AgentLayer, ZONE_PADDING, type Zone } from './AgentLayer.tsx';
 import { TOGGLE_AI } from './AiSidebar.tsx';
+import { ErrorBoundary } from './ErrorBoundary.tsx';
 import { langCode, t } from './i18n.ts';
 import { SourceSummary } from './SourceSummary.tsx';
 import { frameDiff, frameOf, frameOfElement, resolveLook, sameFrame, type Frame, type Look } from './style.ts';
@@ -823,7 +824,24 @@ const EmbeddedWidget = memo(function EmbeddedWidget({ nodeId }: { nodeId: string
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  return <div ref={host} className="wn-embed">{view && <WidgetCard view={view} look={look} active={active} />}</div>;
+  return (
+    <div ref={host} className="wn-embed">
+      {view && (
+        // Agents write what a widget is given, so what they got wrong stops at the widget, until they change it.
+        <ErrorBoundary
+          resetKey={view}
+          fallback={(error) => (
+            <div className="wn">
+              <div className="wn-head"><span className="wn-title">{view.title ?? view.id}</span></div>
+              <div className="wn-banner bad crashed">{t('This widget stopped working: {message}', { message: error.message })}</div>
+            </div>
+          )}
+        >
+          <WidgetCard view={view} look={look} active={active} />
+        </ErrorBoundary>
+      )}
+    </div>
+  );
 });
 
 /**

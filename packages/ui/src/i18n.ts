@@ -13,6 +13,11 @@ const KO: Record<string, string> = {
   'Canvas': '캔버스',
   'AI sidebar': 'AI 사이드바',
   'AI sidebar (⌘J)': 'AI 사이드바 (⌘J)',
+  'Exprything stopped working.': 'Exprything에 문제가 생겼어요.',
+  'The canvas stopped working.': '캔버스에 문제가 생겼어요.',
+  'The AI sidebar stopped working.': 'AI 사이드바에 문제가 생겼어요.',
+  'This widget stopped working: {message}': '이 위젯에 문제가 생겼어요: {message}',
+  'Try again': '다시 시도',
 
   // Canvas
   'Widgets cannot be copied. Ask the agent for another one.': '위젯은 복사할 수 없어요. 에이전트에게 하나 더 만들어 달라고 해 주세요.',
