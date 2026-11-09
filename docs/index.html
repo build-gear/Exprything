@@ -218,7 +218,7 @@
     <span class="eyebrow sketchy"><span lang="en">An open-source canvas for Claude Code and Codex</span><span lang="ko">Claude Code와 Codex를 위한 오픈소스 캔버스</span></span>
     <h1>
       <span lang="en">Draw it once.<br>It stays <span class="fresh">fresh<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
-      <span lang="ko">한 번 그려 두면,<br>알아서 <span class="fresh">최신<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
+      <span lang="ko">그리는 건 한 번,<br>업데이트는 <span class="fresh">알아서<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
     </h1>
     <p class="lead">
       <span lang="en">Ask your coding agent for a dashboard and it draws one on an Excalidraw canvas. Behind every chart is a recipe: where the data comes from, how often to fetch it, how to show it. A daemon on your machine keeps running those recipes, so the canvas stays current without another AI call.</span>
@@ -269,7 +269,7 @@
         </div>
         <div class="step sketchy soft">
           <div class="num">3</div>
-          <h3><span lang="en">It stays fresh</span><span lang="ko">알아서 최신으로</span></h3>
+          <h3><span lang="en">It stays fresh</span><span lang="ko">최신 상태 유지</span></h3>
           <p><span lang="en">The daemon runs each recipe on its schedule, keeps its history, and pushes changes to the open canvas. Your agent has moved on; the numbers keep moving.</span><span lang="ko">데몬이 레시피를 주기마다 실행하고 기록을 남기며, 바뀐 내용을 열려 있는 캔버스에 바로 보내요. 에이전트는 떠나도 숫자는 계속 움직여요.</span></p>
         </div>
       </div>
@@ -360,7 +360,7 @@ pnpm exp connect claude      <span class="c"><span lang="en"># or: pnpm exp conn
 <script>
   const TEXT = {
     en: { title: 'Exprything: draw it once, it stays fresh', copy: 'Copy', copied: 'Copied', failed: 'Select and copy' },
-    ko: { title: 'Exprything: 한 번 그려 두면, 알아서 최신', copy: '복사', copied: '복사됨', failed: '직접 선택해서 복사하세요' },
+    ko: { title: 'Exprything: 그리는 건 한 번, 업데이트는 알아서', copy: '복사', copied: '복사됨', failed: '직접 선택해서 복사하세요' },
   };
   const HANGUL_FONT = 'https://cdn.jsdelivr.net/npm/@fontsource/poor-story@5.3.0/index.css';
   const shot = document.querySelector('.shot img');
