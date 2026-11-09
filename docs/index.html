@@ -27,8 +27,8 @@
   })();
 </script>
 <style>
-  /* Virgil, Excalidraw's hand-drawn font (SIL OFL 1.1), from the Excalidraw package on npm. Hangul, which
-     Virgil lacks, falls to Poor Story (SIL OFL 1.1), the app's own Hangul font, loaded for Korean only. */
+  /* Virgil, Excalidraw's hand-drawn font (SIL OFL 1.1), from the Excalidraw package on npm. Korean is
+     written in Poor Story (SIL OFL 1.1), the app's own Hangul font, loaded for Korean only. */
   @font-face {
     font-family: Virgil;
     src: url(https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.18.1/dist/prod/fonts/Virgil/Virgil-Regular.woff2) format('woff2');
@@ -39,7 +39,7 @@
   :root {
     --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --hand: Virgil, 'Poor Story', 'Comic Sans MS', 'Segoe Print', cursive;
+    --hand: Virgil, 'Comic Sans MS', 'Segoe Print', cursive;
     --bg: #fdfcf9;
     --dots: #dcd8d0;
     --ink: #1e1e1e;
@@ -57,8 +57,8 @@
   html[lang='ko'] [lang='en'], html[lang='en'] [lang='ko'] { display: none !important; }
   /* Korean wraps at spaces, not inside a word. */
   html[lang='ko'] body { word-break: keep-all; overflow-wrap: break-word; }
-  /* Virgil's space, which Hangul set in Poor Story borrows, is wide for Korean words. */
-  html[lang='ko'] :is(h1, h2, h3, .quote, .ask, .note) { word-spacing: -0.14em; }
+  /* Korean handwriting is Poor Story alone, Latin and punctuation included, so a line never mixes two hands. */
+  html[lang='ko'] { --hand: 'Poor Story', Virgil, 'Comic Sans MS', cursive; }
 
   *, *::before, *::after { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -83,7 +83,7 @@
   .nav { display: flex; align-items: center; justify-content: space-between; height: 76px; }
   .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
   .brand img { width: 34px; height: 34px; border-radius: 9px; }
-  .brand span { font-family: var(--hand); font-size: 24px; }
+  .brand span { font-family: Virgil, 'Comic Sans MS', cursive; font-size: 24px; }
   .nav nav { display: flex; align-items: center; gap: 26px; font-size: 15px; }
   .nav nav a { text-decoration: none; color: var(--muted); }
   .nav nav a:hover { color: var(--ink); }
@@ -100,7 +100,7 @@
   .hero { text-align: center; padding: 64px 0 40px; }
   .eyebrow { display: inline-block; font-size: 14px; letter-spacing: 0.02em; padding: 6px 14px; margin-bottom: 26px; background: var(--tint); color: #b35400; }
   .hero h1 { font-size: clamp(46px, 7.4vw, 86px); line-height: 1.04; letter-spacing: -0.01em; }
-  html[lang='ko'] .hero h1 { font-size: clamp(50px, 8vw, 94px); line-height: 1.12; letter-spacing: 0; }
+  html[lang='ko'] .hero h1 { font-size: clamp(48px, 7.6vw, 88px); line-height: 1.12; letter-spacing: 0; }
   .fresh { position: relative; white-space: nowrap; }
   .fresh svg { position: absolute; left: -2%; bottom: -0.18em; width: 104%; height: 0.32em; overflow: visible; }
   .lead { max-width: 720px; margin: 28px auto 0; font-size: 19px; }
@@ -218,23 +218,23 @@
     <span class="eyebrow sketchy"><span lang="en">An open-source canvas for Claude Code and Codex</span><span lang="ko">Claude Code와 Codex를 위한 오픈소스 캔버스</span></span>
     <h1>
       <span lang="en">Draw it once.<br>It stays <span class="fresh">fresh<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
-      <span lang="ko">한 번 그리면,<br>언제나 <span class="fresh">최신<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
+      <span lang="ko">한 번 그려 두면,<br>알아서 <span class="fresh">최신<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
     </h1>
     <p class="lead">
       <span lang="en">Ask your coding agent for a dashboard and it draws one on an Excalidraw canvas. Behind every chart is a recipe: where the data comes from, how often to fetch it, how to show it. A daemon on your machine keeps running those recipes, so the canvas stays current without another AI call.</span>
-      <span lang="ko">코딩 에이전트에게 대시보드를 부탁하면 Excalidraw 캔버스에 그려 줘요. 차트마다 뒤에는 레시피가 있어요. 데이터를 어디서, 얼마나 자주 가져와서, 어떻게 보여 줄지 적은 것이죠. 내 컴퓨터의 데몬이 이 레시피를 계속 실행하니까, AI를 다시 부르지 않아도 캔버스는 늘 최신이에요.</span>
+      <span lang="ko">코딩 에이전트에게 대시보드를 부탁하면 Excalidraw 캔버스에 그려 줘요. 차트마다 데이터를 어디서 가져와 얼마나 자주 갱신하고 어떻게 보여 줄지 정한 ‘레시피’가 있어요. 이 레시피를 내 컴퓨터의 데몬이 계속 실행하니까, AI를 다시 부르지 않아도 캔버스는 늘 최신이에요.</span>
     </p>
     <div class="ctas">
       <a class="btn primary sketchy" href="#start"><span lang="en">Get started</span><span lang="ko">시작하기</span></a>
       <a class="btn secondary sketchy" href="https://github.com/build-gear/Exprything"><span lang="en">View on GitHub</span><span lang="ko">GitHub에서 보기</span></a>
     </div>
-    <div class="facts"><span lang="en">MIT licensed · Runs locally · macOS</span><span lang="ko">MIT 라이선스 · 내 컴퓨터에서 실행 · macOS</span></div>
+    <div class="facts"><span lang="en">MIT licensed · Runs locally · macOS</span><span lang="ko">MIT 라이선스 · 로컬 실행 · macOS</span></div>
 
     <div class="shot">
       <div class="frame sketchy soft">
         <img src="screenshot.png" width="2880" height="1800" fetchpriority="high"
           alt="The repo pulse example on a hand-drawn canvas: commits per day, a TODO count and recent commits. In the AI sidebar, Claude Code was asked which day was busiest and left a note under the chart."
-          data-alt-ko="손그림 스타일 캔버스에 띄운 repo pulse 예제: 일별 커밋, TODO 개수, 최근 커밋. AI 사이드바에서 Claude Code에게 가장 바빴던 날을 물었고, 차트 아래에 메모를 남겼어요.">
+          data-alt-ko="손그림 스타일 캔버스에 띄운 repo pulse 예제: 하루 커밋 수, TODO 개수, 최근 커밋. AI 사이드바에서 Claude Code에게 가장 바빴던 날을 물었더니 차트 아래에 메모를 남겼어요.">
       </div>
       <div class="note left" aria-hidden="true">
         <span lang="en">refreshes<br>every 10 min</span><span lang="ko">10분마다<br>알아서 갱신</span>
@@ -251,26 +251,26 @@
     <div class="wrap">
       <div class="section-head">
         <h2><span lang="en">How it works</span><span lang="ko">작동 방식</span></h2>
-        <p><span lang="en">Your agent does the thinking once. After that it is plain commands on a schedule.</span><span lang="ko">생각은 에이전트가 처음 한 번만 해요. 그다음은 정해진 주기에 도는 평범한 명령이에요.</span></p>
+        <p><span lang="en">Your agent does the thinking once. After that it is plain commands on a schedule.</span><span lang="ko">에이전트는 처음에 한 번만 일해요. 그다음부터는 정해진 주기로 명령이 돌 뿐이에요.</span></p>
       </div>
       <div class="steps">
         <div class="step sketchy soft">
           <div class="num">1</div>
           <h3><span lang="en">Ask</span><span lang="ko">부탁하기</span></h3>
-          <p class="quote"><span lang="en">“Draw a repo pulse canvas for this repo: commits per day, the TODO count, recent commits.”</span><span lang="ko">“이 저장소의 repo pulse 캔버스를 그려 줘. 일별 커밋, TODO 개수, 최근 커밋으로.”</span></p>
+          <p class="quote"><span lang="en">“Draw a repo pulse canvas for this repo: commits per day, the TODO count, recent commits.”</span><span lang="ko">“이 저장소 현황을 캔버스에 그려 줘. 하루 커밋 수, TODO 개수, 최근 커밋까지.”</span></p>
         </div>
         <div class="step sketchy soft">
           <div class="num">2</div>
-          <h3><span lang="en">It writes recipes</span><span lang="ko">레시피 쓰기</span></h3>
-          <p><span lang="en">Through MCP or the <code>exp</code> CLI, your agent describes each widget and the recipe that feeds it, tries them in a dry run, then applies.</span><span lang="ko">에이전트가 MCP나 <code>exp</code> CLI로 위젯과 거기에 데이터를 대는 레시피를 정하고, 미리 한 번 돌려 본 다음 적용해요.</span></p>
+          <h3><span lang="en">It writes recipes</span><span lang="ko">레시피 만들기</span></h3>
+          <p><span lang="en">Through MCP or the <code>exp</code> CLI, your agent describes each widget and the recipe that feeds it, tries them in a dry run, then applies.</span><span lang="ko">에이전트가 MCP나 <code>exp</code> CLI로 위젯마다 데이터를 가져올 레시피를 만들고, 한 번 시험해 본 뒤 캔버스에 올려요.</span></p>
           <pre><code>{ <span class="k">"kind"</span>: <span class="s">"exec"</span>,
   <span class="k">"cmd"</span>: [<span class="s">"git"</span>, <span class="s">"log"</span>, <span class="s">"…"</span>],
   <span class="k">"refresh"</span>: { <span class="k">"every"</span>: <span class="s">"10m"</span> } }</code></pre>
         </div>
         <div class="step sketchy soft">
           <div class="num">3</div>
-          <h3><span lang="en">It stays fresh</span><span lang="ko">계속 최신으로</span></h3>
-          <p><span lang="en">The daemon runs each recipe on its schedule, keeps its history, and pushes changes to the open canvas. Your agent has moved on; the numbers keep moving.</span><span lang="ko">데몬이 레시피마다 정해진 주기로 실행하고, 기록을 남기고, 열려 있는 캔버스에 바뀐 내용을 보내요. 에이전트는 떠나도 숫자는 계속 움직여요.</span></p>
+          <h3><span lang="en">It stays fresh</span><span lang="ko">알아서 최신으로</span></h3>
+          <p><span lang="en">The daemon runs each recipe on its schedule, keeps its history, and pushes changes to the open canvas. Your agent has moved on; the numbers keep moving.</span><span lang="ko">데몬이 레시피를 주기마다 실행하고 기록을 남기며, 바뀐 내용을 열려 있는 캔버스에 바로 보내요. 에이전트는 떠나도 숫자는 계속 움직여요.</span></p>
         </div>
       </div>
     </div>
@@ -279,39 +279,39 @@
   <section id="features">
     <div class="wrap">
       <div class="section-head">
-        <h2><span lang="en">Live data you can draw on</span><span lang="ko">실시간 데이터 위에 그리세요</span></h2>
-        <p><span lang="en">Widgets and your own sketches share one Excalidraw canvas.</span><span lang="ko">위젯과 직접 그린 그림이 한 Excalidraw 캔버스에 함께 있어요.</span></p>
+        <h2><span lang="en">Live data you can draw on</span><span lang="ko">실시간 데이터 위에 바로 그리세요</span></h2>
+        <p><span lang="en">Widgets and your own sketches share one Excalidraw canvas.</span><span lang="ko">위젯과 직접 그린 그림이 하나의 Excalidraw 캔버스에 함께 놓여요.</span></p>
       </div>
       <div class="grid">
         <div class="feature sketchy soft">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V12M10 20V6M16 20V14M3 20.5h18"/></svg>
-          <h3><span lang="en">Live widgets</span><span lang="ko">살아 있는 위젯</span></h3>
-          <p><span lang="en">Charts, tables, stats, logs and markdown, each fed by a recipe: a command, a file, data you push, or your agents' own activity.</span><span lang="ko">차트, 표, 통계, 로그, 마크다운. 위젯마다 레시피로 데이터를 받아요. 명령, 파일, 직접 보낸 데이터, 에이전트의 활동까지요.</span></p>
+          <h3><span lang="en">Live widgets</span><span lang="ko">실시간 위젯</span></h3>
+          <p><span lang="en">Charts, tables, stats, logs and markdown, each fed by a recipe: a command, a file, data you push, or your agents' own activity.</span><span lang="ko">차트, 표, 숫자, 로그, 마크다운을 쓸 수 있어요. 데이터는 명령 실행 결과, 파일, 직접 보낸 데이터, 에이전트 활동에서 가져와요.</span></p>
         </div>
         <div class="feature sketchy soft">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/></svg>
-          <h3><span lang="en">It's Excalidraw</span><span lang="ko">바로 Excalidraw</span></h3>
-          <p><span lang="en">Draw shapes, arrows and notes around live data. Give widgets a hand-drawn style and their charts are drawn by hand too.</span><span lang="ko">실시간 데이터 옆에 도형, 화살표, 메모를 그리세요. 위젯을 손그림 스타일로 바꾸면 차트도 손으로 그린 듯 그려져요.</span></p>
+          <h3><span lang="en">It's Excalidraw</span><span lang="ko">Excalidraw 그대로</span></h3>
+          <p><span lang="en">Draw shapes, arrows and notes around live data. Give widgets a hand-drawn style and their charts are drawn by hand too.</span><span lang="ko">실시간 데이터 옆에 도형, 화살표, 메모를 자유롭게 그리세요. 손그림 스타일을 고르면 차트까지 손으로 그린 듯 바뀌어요.</span></p>
         </div>
         <div class="feature sketchy soft">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 10h8"/></svg>
           <h3><span lang="en">AI sidebar</span><span lang="ko">AI 사이드바</span></h3>
-          <p><span lang="en">Talk to Claude Code or Codex beside the canvas. Select something and say “this”; it works from what you selected.</span><span lang="ko">캔버스 옆에서 Claude Code나 Codex와 대화하세요. 무언가를 선택하고 “이거”라고 하면, 선택한 것을 두고 작업해요.</span></p>
+          <p><span lang="en">Talk to Claude Code or Codex beside the canvas. Select something and say “this”; it works from what you selected.</span><span lang="ko">캔버스 옆에서 바로 Claude Code나 Codex와 대화해요. 무언가를 선택하고 “이거”라고 하면 그걸 보고 작업해요.</span></p>
         </div>
         <div class="feature sketchy soft">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l6 16 2.2-6.8L20 10z"/></svg>
-          <h3><span lang="en">Watch it work</span><span lang="ko">일하는 모습이 보여요</span></h3>
-          <p><span lang="en">An agent's cursor shows where it is, and what it is changing stays locked until it is done. ⌘Z takes back what it drew.</span><span lang="ko">에이전트의 커서가 어디서 일하는지 보여 주고, 바꾸고 있는 부분은 끝날 때까지 잠겨요. 에이전트가 그린 것은 ⌘Z로 되돌릴 수 있어요.</span></p>
+          <h3><span lang="en">Watch it work</span><span lang="ko">작업하는 게 보여요</span></h3>
+          <p><span lang="en">An agent's cursor shows where it is, and what it is changing stays locked until it is done. ⌘Z takes back what it drew.</span><span lang="ko">에이전트가 어디를 작업 중인지 커서로 보이고, 고치는 동안에는 그 부분이 잠겨요. 에이전트가 그린 건 ⌘Z로 되돌릴 수 있어요.</span></p>
         </div>
         <div class="feature sketchy soft">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg>
-          <h3><span lang="en">Local and careful</span><span lang="ko">내 컴퓨터에서, 꼼꼼하게</span></h3>
-          <p><span lang="en">The daemon listens on 127.0.0.1 behind a token, and a command runs only after you approve it.</span><span lang="ko">데몬은 127.0.0.1에서만, 토큰이 있어야 응답해요. 명령은 내가 승인해야 실행돼요.</span></p>
+          <h3><span lang="en">Local and careful</span><span lang="ko">로컬에서 안전하게</span></h3>
+          <p><span lang="en">The daemon listens on 127.0.0.1 behind a token, and a command runs only after you approve it.</span><span lang="ko">데몬은 내 컴퓨터(127.0.0.1)에서만, 토큰이 있어야 응답해요. 명령은 내가 승인해야 실행돼요.</span></p>
         </div>
         <div class="feature sketchy soft">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
           <h3><span lang="en">Agent activity</span><span lang="ko">에이전트 활동</span></h3>
-          <p><span lang="en">Optional hooks put what Claude Code and Codex are doing, session by session, on a canvas of its own.</span><span lang="ko">원하면 켤 수 있는 훅이 Claude Code와 Codex가 하는 일을 세션별로 전용 캔버스에 보여 줘요.</span></p>
+          <p><span lang="en">Optional hooks put what Claude Code and Codex are doing, session by session, on a canvas of its own.</span><span lang="ko">원하면 훅을 켜서 Claude Code와 Codex가 무슨 일을 하는지 세션별로 캔버스에 띄울 수 있어요.</span></p>
         </div>
       </div>
     </div>
@@ -333,11 +333,11 @@ pnpm exp open                <span class="c"><span lang="en"># start the daemon,
 pnpm exp connect claude      <span class="c"><span lang="en"># or: pnpm exp connect codex</span><span lang="ko"># 또는: pnpm exp connect codex</span></span></code></pre>
         </div>
         <div class="aside sketchy soft">
-          <h3><span lang="en">Then ask your agent</span><span lang="ko">그다음 에이전트에게</span></h3>
-          <p class="ask"><span lang="en">“Draw a repo pulse canvas for this repo.”</span><span lang="ko">“이 저장소의 repo pulse 캔버스를 그려 줘.”</span></p>
+          <h3><span lang="en">Then ask your agent</span><span lang="ko">그다음, 에이전트에게</span></h3>
+          <p class="ask"><span lang="en">“Draw a repo pulse canvas for this repo.”</span><span lang="ko">“이 저장소 현황을 캔버스에 그려 줘.”</span></p>
           <ul>
-            <li><span lang="en">Prefer an app? <code>pnpm desktop:dist</code> builds one for macOS that carries its own daemon.</span><span lang="ko">앱으로 쓰고 싶다면 <code>pnpm desktop:dist</code>로 데몬이 들어 있는 macOS 앱을 만들 수 있어요.</span></li>
-            <li><span lang="en">Every recipe, widget and command is in the <a href="https://github.com/build-gear/Exprything#readme">README</a>.</span><span lang="ko">레시피, 위젯, 명령은 모두 <a href="https://github.com/build-gear/Exprything#readme">README</a>에 있어요.</span></li>
+            <li><span lang="en">Prefer an app? <code>pnpm desktop:dist</code> builds one for macOS that carries its own daemon.</span><span lang="ko">앱이 편하다면 <code>pnpm desktop:dist</code>로 데몬까지 들어 있는 macOS 앱을 만들 수 있어요.</span></li>
+            <li><span lang="en">Every recipe, widget and command is in the <a href="https://github.com/build-gear/Exprything#readme">README</a>.</span><span lang="ko">레시피, 위젯, 명령 설명은 모두 <a href="https://github.com/build-gear/Exprything#readme">README</a>에 있어요.</span></li>
           </ul>
         </div>
       </div>
@@ -348,7 +348,7 @@ pnpm exp connect claude      <span class="c"><span lang="en"># or: pnpm exp conn
 <footer>
   <div class="wrap">
     <a class="brand" href="./"><img src="logo.png" alt="" width="34" height="34"><span>Exprything</span></a>
-    <div><span lang="en">MIT License · Built on Excalidraw, ECharts and the Model Context Protocol</span><span lang="ko">MIT 라이선스 · Excalidraw, ECharts, Model Context Protocol 위에서 만들었어요</span></div>
+    <div><span lang="en">MIT License · Built on Excalidraw, ECharts and the Model Context Protocol</span><span lang="ko">MIT 라이선스 · Excalidraw, ECharts, Model Context Protocol로 만들었어요</span></div>
     <div class="links">
       <a href="https://github.com/build-gear/Exprything">GitHub</a>
       <a href="https://github.com/build-gear/Exprything#readme">README</a>
@@ -360,7 +360,7 @@ pnpm exp connect claude      <span class="c"><span lang="en"># or: pnpm exp conn
 <script>
   const TEXT = {
     en: { title: 'Exprything: draw it once, it stays fresh', copy: 'Copy', copied: 'Copied', failed: 'Select and copy' },
-    ko: { title: 'Exprything: 한 번 그리면, 언제나 최신', copy: '복사', copied: '복사됨', failed: '직접 선택해서 복사하세요' },
+    ko: { title: 'Exprything: 한 번 그려 두면, 알아서 최신', copy: '복사', copied: '복사됨', failed: '직접 선택해서 복사하세요' },
   };
   const HANGUL_FONT = 'https://cdn.jsdelivr.net/npm/@fontsource/poor-story@5.3.0/index.css';
   const shot = document.querySelector('.shot img');
