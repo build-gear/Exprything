@@ -166,3 +166,7 @@ examples/   sample recipes
 ```
 
 UI development with hot reload: run a daemon (`pnpm exp daemon start`), then `pnpm dev:ui` and open the Vite URL with `#/c/main?token=<~/.exprything/token>`.
+
+## License
+
+[MIT](LICENSE). Dependencies keep their own licenses; Poor Story, the Hangul UI font, is under the SIL Open Font License 1.1.

@@ -3,6 +3,7 @@
   "productName": "Exprything",
   "version": "0.0.1",
   "private": true,
+  "license": "MIT",
   "description": "Exprything as a macOS app: the canvas in its own window, with the daemon, CLI and MCP server built in.",
   "author": "Exprything",
   "type": "module",
