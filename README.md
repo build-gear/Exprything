@@ -1,10 +1,10 @@
 # Exprything
 
-A canvas that coding agents draw on **once**, and that keeps itself fresh afterwards with no further AI calls.
+**A whiteboard you share with your agents. AI draws, data flows.**
 
 ![The repo pulse example on a hand-drawn canvas. In the AI sidebar, Claude Code was asked which day was busiest and left a note under the chart.](docs/screenshot.png)
 
-Claude Code or Codex writes *recipes* (how to get data, how often, how to transform it, how to show it) through MCP or the `exp` CLI.
+Coding agents draw on it **once**, and it keeps itself fresh afterwards with no further AI calls: Claude Code or Codex writes *recipes* (how to get data, how often, how to transform it, how to show it) through MCP or the `exp` CLI.
 A local daemon runs those recipes on schedule, records their history, and pushes updates to the canvas in your browser.
 
 Status: experimental. It is developed and tested on macOS on Apple silicon only, and the desktop app and `exp service` are macOS only. The design notes, [docs/DESIGN.md](docs/DESIGN.md), are in Korean.

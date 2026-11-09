@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Exprything: draw it once, it stays fresh</title>
+<title>Exprything: AI draws, data flows</title>
 <meta name="description" content="An open-source canvas for Claude Code and Codex. Your agent draws a dashboard once; a local daemon keeps every chart, table and number current with no further AI calls.">
 <meta name="theme-color" content="#fdfcf9">
 <link rel="canonical" href="https://build-gear.github.io/Exprything/">
 <link rel="icon" type="image/png" href="favicon.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Exprything: draw it once, it stays fresh">
+<meta property="og:title" content="Exprything: AI draws, data flows">
 <meta property="og:description" content="An open-source canvas for Claude Code and Codex. Your agent draws it once; a local daemon keeps it current.">
 <meta property="og:image" content="https://build-gear.github.io/Exprything/screenshot.png">
 <meta property="og:url" content="https://build-gear.github.io/Exprything/">
@@ -224,10 +224,10 @@
 
 <main>
   <div class="wrap hero">
-    <span class="eyebrow sketchy"><span lang="en">An open-source canvas for Claude Code and Codex</span><span lang="ko">Claude Code와 Codex를 위한 오픈소스 캔버스</span></span>
+    <span class="eyebrow sketchy"><span lang="en">A whiteboard you share with your agents</span><span lang="ko">에이전트와 같이 쓰는 화이트보드</span></span>
     <h1>
-      <span lang="en">Draw it once.<br>It stays <span class="fresh">fresh<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
-      <span lang="ko">그리는 건 한 번,<br>업데이트는 <span class="fresh">알아서<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
+      <span lang="en">AI draws.<br>Data <span class="fresh">flows<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
+      <span lang="ko">AI는 그리고,<br>데이터는 <span class="fresh">흐른다<svg viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9 C 38 3, 74 12, 112 6 S 176 10, 197 4" fill="none" stroke="#f76707" stroke-width="5" stroke-linecap="round"/></svg></span>.</span>
     </h1>
     <p class="lead">
       <span lang="en">Ask your coding agent for a dashboard and it draws one on an Excalidraw canvas. Behind every chart is a recipe: where the data comes from, how often to fetch it, how to show it. A daemon on your machine keeps running those recipes, so the canvas stays current without another AI call.</span>
@@ -237,7 +237,7 @@
       <a class="btn primary sketchy" href="#start"><span lang="en">Get started</span><span lang="ko">시작하기</span></a>
       <a class="btn secondary sketchy" href="https://github.com/build-gear/Exprything"><span lang="en">View on GitHub</span><span lang="ko">GitHub에서 보기</span></a>
     </div>
-    <div class="facts"><span lang="en">MIT licensed · Runs locally · macOS</span><span lang="ko">MIT 라이선스 · 로컬 실행 · macOS</span></div>
+    <div class="facts"><span lang="en">Open source (MIT) · For Claude Code and Codex · Runs locally on macOS</span><span lang="ko">오픈소스(MIT) · Claude Code와 Codex 지원 · macOS에서 로컬 실행</span></div>
 
     <div class="shot">
       <div class="frame sketchy soft">
@@ -368,8 +368,8 @@ pnpm exp connect claude      <span class="c"><span lang="en"># or: pnpm exp conn
 
 <script>
   const TEXT = {
-    en: { title: 'Exprything: draw it once, it stays fresh', copy: 'Copy', copied: 'Copied', failed: 'Select and copy' },
-    ko: { title: 'Exprything: 그리는 건 한 번, 업데이트는 알아서', copy: '복사', copied: '복사됨', failed: '직접 선택해서 복사하세요' },
+    en: { title: 'Exprything: AI draws, data flows', copy: 'Copy', copied: 'Copied', failed: 'Select and copy' },
+    ko: { title: 'Exprything: AI는 그리고, 데이터는 흐른다', copy: '복사', copied: '복사됨', failed: '직접 선택해서 복사하세요' },
   };
   const HANGUL_FONT = 'https://cdn.jsdelivr.net/npm/@fontsource/poor-story@5.3.0/index.css';
   const shot = document.querySelector('.shot img');
