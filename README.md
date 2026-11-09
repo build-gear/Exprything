@@ -5,13 +5,15 @@ A canvas that coding agents draw on **once**, and that keeps itself fresh afterw
 Claude Code or Codex writes *recipes* (how to get data, how often, how to transform it, how to show it) through MCP or the `exp` CLI.
 A local daemon runs those recipes on schedule, records their history, and pushes updates to the canvas in your browser.
 
-See [docs/DESIGN.md](docs/DESIGN.md) for the full design.
+Status: experimental. It is developed and tested on macOS on Apple silicon only, and the desktop app and `exp service` are macOS only. The design notes, [docs/DESIGN.md](docs/DESIGN.md), are in Korean.
 
 ## Quick start
 
-Requires Node 22.13+ and pnpm.
+Requires Node 22.13+ and [pnpm](https://pnpm.io/installation) 10.
 
 ```bash
+git clone https://github.com/build-gear/Exprything.git
+cd Exprything
 pnpm install
 pnpm build          # builds the canvas UI the daemon serves
 pnpm exp open       # starts the daemon in the background and opens the canvas
@@ -27,7 +29,7 @@ pnpm exp connect claude     # Claude Code
 pnpm exp connect codex      # Codex
 ```
 
-This registers Exprything through the agent's own CLI (`claude mcp add-json --scope user`, `codex mcp add`), for every project. Add `--activity` to also see what the agent does (see [Agent activity](#agent-activity)); `pnpm exp connect` alone shows what is connected. The **Agents** button on the canvas does the same. New agent sessions pick up the change.
+This registers Exprything through the agent's own CLI (`claude mcp add-json --scope user`, `codex mcp add`), for every project. Add `--activity` to also see what the agent does (see [Agent activity](#agent-activity)); `pnpm exp connect` alone shows what is connected. The AI sidebar's settings do the same. New agent sessions pick up the change.
 
 Then ask, for example: *"Draw a repo pulse canvas for this repo: commits per day, TODO count trend, recent commits."*
 
@@ -39,12 +41,14 @@ pnpm exp service install
 
 ## Try the example without an agent
 
-Edit `cwd` in [examples/repo-pulse.json](examples/repo-pulse.json) to point at a git repository, then:
+Point each `cwd` in [examples/repo-pulse.json](examples/repo-pulse.json) at a git repository, then:
 
 ```bash
 pnpm exp apply -f examples/repo-pulse.json --dry-run   # run every source once, show samples
 pnpm exp apply -f examples/repo-pulse.json
-pnpm exp approve commits-daily                        # exec recipes need a one-time approval
+pnpm exp approve commits-daily                        # exec recipes run only once you approve them
+pnpm exp approve todo-count
+pnpm exp approve recent-commits
 pnpm exp open repo-pulse
 ```
 
@@ -62,7 +66,7 @@ It carries its own daemon, CLI and MCP server, so it needs no Node install. The 
 claude mcp add --scope user exprything -- ~/.exprything/bin/exp mcp
 ```
 
-The build is not notarized, so on another Mac the first launch needs right-click > Open. macOS also asks before Exprything's recipes or AI sidebar read your Desktop, Documents or Downloads folder; until you allow it (System Settings > Privacy & Security > Files and Folders), commands there hang until they time out.
+The build is not notarized. One you build yourself opens as usual; copied to another Mac, it is blocked at first launch until you allow it in System Settings > Privacy & Security > Open Anyway. macOS also asks before Exprything's recipes or AI sidebar read your Desktop, Documents or Downloads folder; until you allow it (System Settings > Privacy & Security > Files and Folders), commands there hang until they time out.
 
 macOS ties that answer to the app's signature. The build is ad-hoc signed by default, and an ad-hoc signature changes with every build, so macOS asks again after each install. To keep your answer across updates, add a signing identity once:
 
@@ -101,7 +105,6 @@ Widgets stay owned by agent recipes: moving or resizing one pins it, deleting on
 Until a widget has a value (a new or changed recipe), the whole widget is drawn as a skeleton of its own layout by [Skullet](https://skullet.lochie.me). It shimmers while the recipe runs and holds still under the banner while it waits for approval.
 Agents can read what you select (MCP `canvas_selection`, `exp selection`): widgets by node id, and the shapes, text and arrows you drew, so you can point at something and ask about "this".
 Switch, create and delete canvases from the menu in the top-left corner; the top-right corner shows the canvas's sources and any that await approval or repair. Deleting a canvas also deletes its drawing, its conversations and any sources no other canvas reads, and cannot be undone.
-The Excalidraw renderer is still a spike (see [docs/research/excalidraw.md](docs/research/excalidraw.md), section 10.5).
 
 ### Style
 
@@ -152,6 +155,12 @@ While Claude Code or Codex works on a canvas you have open, you see its cursor t
 - Recipes can read the events too: a source of kind `agent` gives recent events, or one row per session with its state (`"view": "sessions"`).
 - `EXPRYTHING_ACTIVITY=off` silences the hooks in one shell; `exp connect claude --no-activity` removes them.
 
+## Security
+
+- The daemon listens on 127.0.0.1 only and turns away any other `Host`. Everything but its health check needs the token in `~/.exprything/token`; `exp open` hands it to the browser in the URL fragment, which is never sent to a server.
+- An `exec` recipe runs a command on your machine. It runs only once you approve it, on the canvas or with `exp approve`, and changing its command or folder asks again.
+- Agents in the AI sidebar are your own Claude Code or Codex, with your login, settings and permission rules.
+
 ## Layout
 
 ```
@@ -162,10 +171,16 @@ packages/
   mcp/      MCP tools over the client
   cli/      `exp` command (also hosts `exp mcp`)
   ui/       Excalidraw canvas + widgets (ECharts, tables, stats, logs, markdown)
+  desktop/  macOS app (Electron) that carries all of the above
 examples/   sample recipes
+docs/       design notes and research (in Korean)
 ```
 
 UI development with hot reload: run a daemon (`pnpm exp daemon start`), then `pnpm dev:ui` and open the Vite URL with `#/c/main?token=<~/.exprything/token>`.
+
+## Contributing
+
+Issues and pull requests are welcome. There is no test suite yet: `pnpm typecheck` checks the whole workspace, and changes to the canvas are best checked in a browser (`pnpm build`, then `pnpm exp open`).
 
 ## License
 
