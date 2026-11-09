@@ -2,6 +2,8 @@
 
 A canvas that coding agents draw on **once**, and that keeps itself fresh afterwards with no further AI calls.
 
+![The repo pulse example on a hand-drawn canvas. In the AI sidebar, Claude Code was asked which day was busiest and left a note under the chart.](docs/screenshot.png)
+
 Claude Code or Codex writes *recipes* (how to get data, how often, how to transform it, how to show it) through MCP or the `exp` CLI.
 A local daemon runs those recipes on schedule, records their history, and pushes updates to the canvas in your browser.
 
